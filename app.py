@@ -1839,7 +1839,7 @@ if sensor_file and yield_file:
         date_col_sensor = st.selectbox(
             "날짜시간",
             sensor_df.columns,
-            index=pick_column_index(sensor_df.columns, ["측정시간", "날짜시간", "일시", "날짜", "Date", "datetime"]),
+            index=pick_column_index(sensor_df.columns, ["측정시간", "측정 일자", "날짜시간", "일시", "날짜", "Date", "datetime"]),
         )
     with c2:
         temp_col = st.selectbox(
@@ -1950,6 +1950,27 @@ if sensor_file and yield_file:
         )
 
     df = week_dfs[selected_week].copy()
+
+    env_feature_cols = [
+        build_window_feature_name(selected_week, suffix)
+        for suffix in [
+            "평균주간온도(08~18시)", "평균야간온도(19~07시)",
+            "평균주간습도(08~18시)", "평균야간습도(19~07시)",
+            "평균주간CO₂(08~18시)", "평균야간CO₂(19~07시)",
+            "평균누적일사량(1일최대값기준)",
+        ]
+    ]
+    env_feature_cols = [c for c in env_feature_cols if c in df.columns]
+    if env_feature_cols and df[env_feature_cols].notna().sum().sum() == 0:
+        sensor_min = sensor_df[date_col_sensor].min()
+        sensor_max = sensor_df[date_col_sensor].max()
+        yield_min = yield_df[date_col_yield].min()
+        yield_max = yield_df[date_col_yield].max()
+        st.warning(
+            "7주 평균 환경값이 모두 비어 있습니다. "
+            f"센서 날짜 컬럼(`{date_col_sensor}`)과 조사일자 기간이 겹치는지 확인해 주세요. "
+            f"센서: {sensor_min} ~ {sensor_max}, 조사: {yield_min} ~ {yield_max}"
+        )
 
     st.subheader("매핑 데이터")
     st.dataframe(df)
