@@ -2835,7 +2835,7 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
     st.success("통합 XAI 분석이 완료되었습니다.")
 
 
-# streamlit run app.py — Cloud에서는 __name__ 가드 없이 매 rerun마다 UI 실행
-if os.environ.get("PAI_APP_MODE") != "mobile":
+# streamlit run app.py → __main__ 에서만 UI 실행 (import app 시 중복 렌더 방지)
+if __name__ == "__main__" and os.environ.get("PAI_APP_MODE") != "mobile":
     from dims_ui import run_desktop_ui
     run_desktop_ui(_render_advanced_xai_analysis)
