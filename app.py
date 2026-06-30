@@ -1,3 +1,9 @@
+import os
+
+# Streamlit Cloud / Linux 서버: matplotlib 캐시·GUI 백엔드 이슈 방지
+os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+os.environ.setdefault("MPLBACKEND", "Agg")
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -16,7 +22,6 @@ from sklearn.linear_model import LinearRegression
 import matplotlib
 import platform
 import re
-import os
 
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
@@ -2830,7 +2835,7 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
     st.success("통합 XAI 분석이 완료되었습니다.")
 
 
-# streamlit run app.py → __main__ / import app → "app" (UI는 main에서만 1회 실행)
-if __name__ == "__main__" and os.environ.get("PAI_APP_MODE") != "mobile":
+# streamlit run app.py — Cloud에서는 __name__ 가드 없이 매 rerun마다 UI 실행
+if os.environ.get("PAI_APP_MODE") != "mobile":
     from dims_ui import run_desktop_ui
     run_desktop_ui(_render_advanced_xai_analysis)
