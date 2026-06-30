@@ -1,0 +1,311 @@
+[slides]
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>vLLM 기술 세미나</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700&family=Urbanist:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        /* 1. THE SETUP */
+        * { box-sizing: border-box; }
+        p { margin: 0; margin-bottom: 15px; }
+        body { background-color: #0f172a; display: grid; gap: 20px; grid-template-columns: 1fr; margin: 0; min-height: 100vh; padding: 20px 0; place-items: center; }
+
+        .slide-container {
+            align-items: center;
+            background-color: #1e293b;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            font-family: 'Pretendard', sans-serif;
+            height: 720px;
+            justify-content: center;
+            overflow: hidden;
+            padding: 60px;
+            position: relative;
+            width: 1280px;
+            color: #f1f5f9;
+        }
+
+        /* 1.1 BACKGROUND STYLING (Modern Technical Abstract) */
+        .slide-container::before {
+            content: ''; height: 100%; left: 0; position: absolute; top: 0; width: 100%; z-index: 0;
+            background: radial-gradient(circle at 90% 10%, rgba(45, 212, 191, 0.1) 0%, transparent 40%),
+                        radial-gradient(circle at 10% 90%, rgba(99, 102, 241, 0.1) 0%, transparent 40%);
+        }
+        .slide-container > * { position: relative; z-index: 1; }
+
+        /* 2. TYPOGRAPHY */
+        .slide-container h1, .slide-container h2, .slide-container h3 { font-family: 'Urbanist', sans-serif; color: #f8fafc; margin: 0; }
+        .slide-container h1 { font-size: 72px; font-weight: 700; line-height: 1.1; }
+        .slide-container .slide-title { font-size: 44px; font-weight: 700; margin-bottom: 40px; text-align: left; width: 100%; color: #2dd4bf; border-left: 8px solid #2dd4bf; padding-left: 20px; }
+        .slide-container p, .slide-container li, .slide-container td, .slide-container th { font-size: 20px; line-height: 1.6; color: #cbd5e1; }
+        .slide-container .subtitle { font-size: 24px; color: #94a3b8; margin-top: 20px; }
+
+        .content-area { display: flex; flex-direction: column; flex-grow: 1; justify-content: center; width: 100%; }
+
+        /* 3. LAYOUTS */
+        .title-layout { text-align: center; }
+        .title-layout span { color: #2dd4bf; }
+
+        .section-title-layout { text-align: center; }
+        .section-title-layout hr { border: none; height: 4px; background: #2dd4bf; width: 80px; margin: 20px auto; }
+        .section-title-layout h2 { font-size: 64px; }
+
+        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; width: 100%; align-items: center; }
+        .two-column.tiled > div { background: #0f172a; border-radius: 16px; border: 1px solid #334155; padding: 40px; }
+        .two-column.tiled h3 { color: #2dd4bf; margin-bottom: 20px; }
+
+        .image-wrapper { border-radius: 16px; overflow: hidden; border: 1px solid #334155; background: #000; display: flex; align-items: center; justify-content: center; }
+        .image-wrapper img { width: 100%; height: 100%; object-fit: contain; }
+
+        .tiled-content { display: flex; gap: 30px; width: 100%; align-items: stretch; }
+        .tile { flex: 1; background: #0f172a; border-radius: 16px; border: 1px solid #334155; padding: 30px; display: flex; flex-direction: column; align-items: center; text-align: center; }
+        .tile .icon { font-size: 48px; color: #2dd4bf; margin-bottom: 20px; }
+        .tile h3 { font-size: 28px; margin-bottom: 15px; color: #f8fafc; }
+
+        .highlight-numbers-layout .number { font-size: 140px; font-weight: 700; color: #2dd4bf; font-family: 'Urbanist'; line-height: 1; }
+        .highlight-numbers-layout .number-label { font-size: 28px; font-weight: 700; color: #f1f5f9; }
+
+        .bullet-list ul { list-style: none; padding: 0; }
+        .bullet-list li { position: relative; padding-left: 40px; margin-bottom: 25px; }
+        .bullet-list i { position: absolute; left: 0; top: 5px; color: #2dd4bf; font-size: 24px; }
+        .bullet-list strong { color: #f8fafc; }
+
+        /* Tables & Charts */
+        .table-layout table { border-collapse: collapse; width: 100%; border-radius: 12px; overflow: hidden; }
+        .table-layout th { background: #0f172a; color: #2dd4bf; padding: 20px; text-align: left; border-bottom: 2px solid #334155; }
+        .table-layout td { background: #1e293b; padding: 18px 20px; border-bottom: 1px solid #334155; }
+
+        /* Area Chart (Throughput) */
+        .area-chart-container { width: 100%; padding: 20px; }
+        .area-chart-svg { width: 100%; height: auto; overflow: visible; }
+        .area-chart-svg .line-stroke { fill: none; stroke: #2dd4bf; stroke-width: 5; }
+        .area-chart-svg .area-fill { fill: rgba(45, 212, 191, 0.2); }
+        .area-chart-svg text { fill: #94a3b8; font-size: 16px; }
+
+        /* Bleed_Image_Right Override */
+        .slide-container.bleed-image-layout { align-items: start; display: grid; gap: 50px; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0; }
+        .slide-container.bleed-image-layout > .content-container { padding: 60px 0 60px 60px; }
+        .slide-container.bleed-image-layout > .image-container { height: 720px; overflow: hidden; width: 100%; }
+        .slide-container.bleed-image-layout .bleed-image-side { height: 720px; object-fit: cover; width: 100%; border-radius: 0 12px 12px 0; }
+
+        /* 4. CODE STYLING */
+        code { background: #0f172a; color: #a5f3fc; padding: 4px 8px; border-radius: 6px; font-family: 'Courier New', monospace; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+
+<div class="slide-container" id="slide1">
+    <div class="title-layout content-area">
+        <h1>vLLM: <span>고성능 LLM 서빙</span>의<br>기술적 이해와 활용</h1>
+        <p class="subtitle">PagedAttention 기반의 메모리 관리 및 처리량 최적화 전략</p>
+        <p style="margin-top: 40px; font-family: 'Urbanist'; letter-spacing: 2px;">TECHNICAL SEMINAR 2024</p>
+    </div>
+</div>
+
+<div class="slide-container" id="slide2">
+    <div class="section-title-layout content-area">
+        <hr>
+        <h2>01. LLM 서빙의 한계</h2>
+        <p>기존 KV 캐시 시스템의 메모리 병목 현상</p>
+    </div>
+</div>
+
+<div class="slide-container" id="slide3">
+    <h2 class="slide-title">KV Cache: 메모리 병목의 원인</h2>
+    <div class="content-area">
+        <div class="two-column">
+            <div class="bullet-list">
+                <ul>
+                    <li><i class="fa-solid fa-triangle-exclamation"></i> <strong>거대한 메모리 요구량:</strong> 수천 개의 토큰에 대한 Key/Value 값을 GPU에 유지해야 함</li>
+                    <li><i class="fa-solid fa-scissors"></i> <strong>파편화(Fragmentation):</strong> 정적 할당 방식으로 인해 최대 길이를 예약하여 60~80%의 메모리가 낭비됨</li>
+                    <li><i class="fa-solid fa-hourglass-half"></i> <strong>낮은 Throughput:</strong> 메모리 낭비로 인해 한 번에 처리 가능한 요청 수(Batch Size)가 극히 제한됨</li>
+                </ul>
+            </div>
+            <div class="image-wrapper">
+                <img src="http://googleusercontent.com/image_collection/image_retrieval/3701326895727235801" alt="LLM Serving Architecture Bottleneck">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container bleed-image-layout" id="slide4">
+    <div class="content-container">
+        <h2 class="slide-title">PagedAttention 기술</h2>
+        <div class="content-area">
+            <p>OS의 가상 메모리 페이징 기법을 LLM에 도입했습니다.</p>
+            <p>KV 캐시를 고정된 크기의 <strong>'블록(Block)'</strong>으로 분할하여 물리적 메모리의 불연속적인 위치에 동적으로 할당합니다.</p>
+            <p style="color: #2dd4bf; font-weight: bold;">결과: 파편화 0%에 근접, 2-4배 많은 요청 처리 가능</p>
+        </div>
+    </div>
+    <div class="image-container">
+        <img class="bleed-image-side" src="http://googleusercontent.com/image_collection/image_retrieval/9465655931778704587" alt="PagedAttention Diagram">
+    </div>
+</div>
+
+<div class="slide-container" id="slide5">
+    <h2 class="slide-title">메모리 관리의 혁신: Logical to Physical</h2>
+    <div class="content-area">
+        <div class="two-column tiled">
+            <div>
+                <h3>Logical Blocks</h3>
+                <p>사용자의 요청은 논리적으로 연속된 토큰들의 배열로 보입니다. 각 토큰 그룹은 논리 블록 인덱스로 관리됩니다.</p>
+            </div>
+            <div>
+                <h3>Physical Blocks</h3>
+                <p>실제 GPU 메모리는 블록 매니저가 관리하는 불연속적 위치에 존재합니다. 매핑 테이블을 통해 지연 할당(Lazy Allocation)을 수행합니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide6">
+    <h2 class="slide-title">Continuous Batching (반복 수준 스케줄링)</h2>
+    <div class="content-area">
+        <div class="tiled-content">
+            <div class="tile">
+                <div class="icon"><i class="fa-solid fa-layer-group"></i></div>
+                <h3>Iteration-level</h3>
+                <p>배치의 모든 요청이 끝날 때까지 기다리지 않고, 매 토큰 생성 반복마다 새로운 요청을 삽입합니다.</p>
+            </div>
+            <div class="tile">
+                <div class="icon"><i class="fa-solid fa-bolt"></i></div>
+                <h3>Zero Idle Time</h3>
+                <p>먼저 끝난 요청이 자리를 비우면 즉시 다음 대기 요청이 시작되어 GPU 활용률을 극대화합니다.</p>
+            </div>
+            <div class="tile">
+                <div class="icon"><i class="fa-solid fa-chart-line"></i></div>
+                <h3>Throughput Boost</h3>
+                <p>정적 배치(Static Batching) 대비 수배 이상의 처리량 향상을 보장합니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide7">
+    <h2 class="slide-title">성능 벤치마크: vLLM vs Others</h2>
+    <div class="content-area">
+        <div class="area-chart-container">
+            <svg class="area-chart-svg" viewBox="0 0 1000 350">
+                <path class="area-fill" d="M0,300 L200,250 L400,180 L600,120 L800,50 L1000,20 L1000,350 L0,350 Z"></path>
+                <polyline class="line-stroke" points="0,300 200,250 400,180 600,120 800,50 1000,20"></polyline>
+                <g class="labels">
+                    <text x="0" y="325">HF Transformers</text>
+                    <text x="500" y="325">TGI (Text Generation Inference)</text>
+                    <text x="900" y="325">vLLM</text>
+                </g>
+                <text x="10" y="30" font-weight="bold" fill="#2dd4bf">Serving Throughput (Requests/s)</text>
+            </svg>
+        </div>
+        <p style="text-align: center; font-style: italic; margin-top: 20px;">※ vLLM은 PagedAttention과 Continuous Batching의 조합으로 압도적인 처리량을 보여줍니다.</p>
+    </div>
+</div>
+
+<div class="slide-container" id="slide8">
+    <h2 class="slide-title">vLLM 활용법: Offline & Online</h2>
+    <div class="content-area">
+        <div class="tiled-content">
+            <div class="tile">
+                <div class="icon"><i class="fa-solid fa-code"></i></div>
+                <h3>Offline Batch Inference</h3>
+                <p><code>vllm.LLM</code> 클래스를 사용하여 로컬 파이썬 스크립트에서 대량의 데이터를 빠르게 처리합니다.</p>
+            </div>
+            <div class="tile">
+                <div class="icon"><i class="fa-solid fa-globe"></i></div>
+                <h3>OpenAI-Compatible Server</h3>
+                <p><code>vllm serve</code> 명령으로 OpenAI 규격의 API 서버를 구동하여 기존 앱과 즉시 통합합니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide9">
+    <h2 class="slide-title">주요 설정 및 최적화 파라미터</h2>
+    <div class="content-area">
+        <div class="table-layout">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Parameter</th>
+                        <th>Description</th>
+                        <th>Benefit</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>--gpu-memory-utilization</code></td>
+                        <td>GPU 메모리 예약 비율 (기본 0.9)</td>
+                        <td>OOM 방지 및 KV 캐시 공간 조절</td>
+                    </tr>
+                    <tr>
+                        <td><code>--tensor-parallel-size</code></td>
+                        <td>모델 병렬 처리를 위한 GPU 개수</td>
+                        <td>대형 모델(70B+) 서빙 가능</td>
+                    </tr>
+                    <tr>
+                        <td><code>--max-model-len</code></td>
+                        <td>최대 컨텍스트 길이 제한</td>
+                        <td>메모리 소비량 예측 가능성 증대</td>
+                    </tr>
+                    <tr>
+                        <td><code>--quantization</code></td>
+                        <td>AWQ, GPTQ, FP8 등 지원</td>
+                        <td>VRAM 사용량 절감 및 속도 향상</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide10">
+    <h2 class="slide-title">핵심 성과 지표 (Efficiency)</h2>
+    <div class="content-area">
+        <div class="two-column highlight-numbers-layout">
+            <div>
+                <div class="number">96%</div>
+                <div class="number-label">Waste Reduction</div>
+            </div>
+            <div>
+                <h3>메모리 낭비의 극적인 감소</h3>
+                <p>PagedAttention은 기존의 정적 할당 방식에서 발생하던 내부 파편화(Internal Fragmentation)와 예약 낭비를 거의 완벽하게 제거합니다. 동일 사양의 GPU에서 최대 4배 더 많은 모델 인스턴스나 배치를 운용할 수 있습니다.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide11">
+    <h2 class="slide-title">CUDA 최적화 및 추가 기능</h2>
+    <div class="content-area">
+        <div class="bullet-list">
+            <ul>
+                <li><i class="fa-solid fa-microchip"></i> <strong>Custom CUDA Kernels:</strong> PagedAttention 연산을 위해 최적화된 독자적인 커널 구현</li>
+                <li><i class="fa-solid fa-diagram-project"></i> <strong>CUDA Graph:</strong> 모델 실행 오버헤드를 줄이기 위한 연산 그래프 캡처 지원</li>
+                <li><i class="fa-solid fa-share-nodes"></i> <strong>Prefix Caching:</strong> 동일한 프롬프트(System Prompt 등)를 공유할 경우 메모리 중복 사용 방지</li>
+                <li><i class="fa-solid fa-compress"></i> <strong>Quantization Stack:</strong> AWQ, GPTQ, SqueezeLLM 등 최신 양자화 기술과 FP8 KV 캐시 완벽 지원</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="slide-container" id="slide12">
+    <div class="section-title-layout content-area">
+        <h2 style="color: #2dd4bf;">Thank You!</h2>
+        <p>vLLM 기술 세미나를 마칩니다.</p>
+        <hr>
+        <p style="font-size: 28px;">질문 및 답변 (Q&A)</p>
+        <div style="margin-top: 50px; font-size: 18px; color: #64748b;">
+            Ref: Efficient Memory Management for LLM Serving with PagedAttention (SOSP '23)
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
+

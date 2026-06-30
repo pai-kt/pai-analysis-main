@@ -13,350 +13,375 @@ import matplotlib.pyplot as plt
 from sklearn.inspection import PartialDependenceDisplay
 import plotly.graph_objects as go
 from sklearn.linear_model import LinearRegression
+from plotly.subplots import make_subplots
 import matplotlib
 import platform
 import re
+
+import matplotlib
+import platform
 import os
 
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
+import os
+import streamlit as st
 
 FONT_PATH = "fonts/NanumGothic.ttf"
 
 try:
     if os.path.exists(FONT_PATH):
         fm.fontManager.addfont(FONT_PATH)
+
         font_prop = fm.FontProperties(fname=FONT_PATH)
         plt.rcParams["font.family"] = font_prop.get_name()
-except Exception:
-    pass
+
+        st.sidebar.success("NanumGothic 적용")
+
+    else:
+        st.sidebar.warning(
+            f"NanumGothic.ttf 없음 ({FONT_PATH}) → 기본 폰트 사용"
+        )
+
+except Exception as e:
+    st.sidebar.warning(
+        f"폰트 로드 실패 → 기본 폰트 사용 ({e})"
+    )
 
 plt.rcParams["axes.unicode_minus"] = False
 
 plt.rcParams['axes.unicode_minus'] = False
 
-if os.environ.get("PAI_APP_MODE") != "mobile":
-    st.set_page_config(page_title="A-DIMS · 토마토 대시보드", layout="wide")
+st.set_page_config(layout="wide")
 
-# 그래프·표 기본 설정 (고정)
-graph_theme = "기본"
-font_scale = 1.0
-line_width_scale = 1.2
-heatmap_cmap = "coolwarm"
-plotly_template = "plotly_white"
+# -------------------------------------------------------------
+# 기본 설정
+# -------------------------------------------------------------
+st.sidebar.markdown("## 🎨 대시보드 테마 설정")
 
-# A-DIMS UI 스타일은 dims_ui.py ADIMS_CSS에서 주입됩니다 (모바일 모드 제외).
-if os.environ.get("PAI_APP_MODE") == "mobile":
-    st.markdown(
-        """
-        <style>
-        .block-container { max-width: 100% !important; }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+bg_theme = st.sidebar.selectbox(
+    "배경 테마 선택",
+    [
+        "Light Blue",
+        "Dark Navy",
+        "Mint",
+        "Lavender",
+        "White",
+        "Warm Cream",
+        "Greenhouse",
+        "Soft Gray",
+        "Peach",
+        "Sky"
+    ],
+    index=0
+)
 
+theme_map = {
+    "Light Blue": "linear-gradient(135deg,#f4f7fb 0%,#eef4ff 40%,#f8fbff 100%)",
+    "Dark Navy": "linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#334155 100%)",
+    "Mint": "linear-gradient(135deg,#ecfeff 0%,#d1fae5 50%,#f0fdfa 100%)",
+    "Lavender": "linear-gradient(135deg,#f5f3ff 0%,#ede9fe 50%,#faf5ff 100%)",
+    "White": "#ffffff",
+    "Warm Cream": "linear-gradient(135deg,#fff7ed 0%,#fffbeb 50%,#fef3c7 100%)",
+    "Greenhouse": "linear-gradient(135deg,#ecfdf5 0%,#dcfce7 45%,#f0fdf4 100%)",
+    "Soft Gray": "linear-gradient(135deg,#f8fafc 0%,#e2e8f0 50%,#f1f5f9 100%)",
+    "Peach": "linear-gradient(135deg,#fff1f2 0%,#ffe4e6 50%,#fff7ed 100%)",
+    "Sky": "linear-gradient(135deg,#eff6ff 0%,#dbeafe 50%,#e0f2fe 100%)"
+}
 
-def render_crop_selector(crop_options):
-    """페이지 최상단 작물 선택."""
-    st.markdown('<div class="crop-top-bar-marker"></div>', unsafe_allow_html=True)
-    return st.selectbox("🌱 작물 선택", crop_options, key="crop_select")
+selected_bg = theme_map[bg_theme]
 
+# -------------------------------------------------------------
+# 디자인 설정: 그래프 / 표 / Heatmap / 글자 크기
+# -------------------------------------------------------------
+st.sidebar.markdown("## 🖌️ 그래프·표 디자인 설정")
 
-def render_page_hero(crop_name):
-    crop_icon = "🍅" if crop_name == "토마토" else "🥒"
-    st.markdown(
-        f"""
-        <div class="xai-hero">
-            <div class="xai-hero-kicker">EXPLAINABLE AI · SMART FARM ANALYTICS</div>
-            <h1 class="xai-hero-title">{crop_icon} {crop_name} 생육·수확 분석 대시보드</h1>
-            <p class="xai-hero-desc">
-                환경센서와 생육 데이터를 결합해 SHAP · ICE · PDP · ALE 기반 설명가능 AI 분석을 수행합니다.
-            </p>
-            <div class="xai-pill-wrap">
-                <div class="xai-pill xai-pill-blue">
-                    <div class="label">분석 파이프라인</div>
-                    <div class="value">7주 롤링</div>
-                </div>
-                <div class="xai-pill xai-pill-teal">
-                    <div class="label">지원 모델</div>
-                    <div class="value">5종</div>
-                </div>
-                <div class="xai-pill xai-pill-purple">
-                    <div class="label">XAI</div>
-                    <div class="value">SHAP · ALE</div>
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+graph_theme = st.sidebar.selectbox(
+    "그래프 스타일 선택",
+    ["기본", "논문(Paper)", "발표(Presentation)", "다크모드", "스마트팜", "컬러풀"],
+    index=0
+)
 
+table_theme = st.sidebar.selectbox(
+    "표 스타일 선택",
+    ["기본", "심플", "논문", "대시보드", "카드형"],
+    index=3
+)
 
-def render_section_header(title, subtitle="", icon="📊", accent="blue"):
-    subtitle_html = f'<p class="xai-section-sub">{subtitle}</p>' if subtitle else ""
-    st.markdown(
-        f"""
-        <div class="xai-section-header xai-accent-{accent}">
-            <div class="xai-section-icon">{icon}</div>
-            <div>
-                <h3 class="xai-section-title">{title}</h3>
-                {subtitle_html}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+heatmap_cmap = st.sidebar.selectbox(
+    "Heatmap 색상 선택",
+    ["YlOrRd", "RdYlGn", "Blues", "viridis", "turbo", "coolwarm", "Greens"],
+    index=5
+)
 
+plotly_template = st.sidebar.selectbox(
+    "Plotly 그래프 테마 선택",
+    ["plotly", "plotly_white", "plotly_dark", "ggplot2", "seaborn", "presentation"],
+    index=1
+)
 
-_STEP_COLORS = {1: "step-blue", 2: "step-teal", 3: "step-purple", 4: "step-amber"}
+font_scale = st.sidebar.slider(
+    "그래프/표 글자 크기 배율",
+    min_value=0.8,
+    max_value=1.6,
+    value=1.0,
+    step=0.1
+)
 
+line_width_scale = st.sidebar.slider(
+    "그래프 선 굵기 배율",
+    min_value=0.8,
+    max_value=2.5,
+    value=1.2,
+    step=0.1
+)
 
-def render_step_badge(step, label):
-    css_class = _STEP_COLORS.get(step, "step-blue")
-    st.markdown(
-        f'<div class="xai-step-badge {css_class}">STEP {step} · {label}</div>',
-        unsafe_allow_html=True,
-    )
-
-
-def render_kpi_cards(items):
-    """색상이 다른 KPI 카드 행을 렌더링합니다. items: [(label, value, color), ...]"""
-    cols = st.columns(len(items))
-    for col, (label, value, color) in zip(cols, items):
-        with col:
-            st.markdown(
-                f"""
-                <div class="xai-kpi-card">
-                    <div class="xai-kpi-label">{label}</div>
-                    <div class="xai-kpi-value" style="color:{color};">{value}</div>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-
-def render_insight(text, variant="blue"):
-    """색상 테두리가 있는 인사이트 카드를 렌더링합니다."""
-    css_class = "xai-insight" if variant == "blue" else f"xai-insight xai-insight-{variant}"
-    st.markdown(f'<div class="{css_class}">{text}</div>', unsafe_allow_html=True)
-
-
-def render_alert_card(text, variant="info"):
-    """success / warning / info 스타일 알림 카드 (글자색 보장)."""
-    css_class = f"xai-alert-card xai-alert-{variant}"
-    st.markdown(f'<div class="{css_class}">{text}</div>', unsafe_allow_html=True)
+# 표 디자인별 CSS 값
+_table_style_map = {
+    "기본": {
+        "header_bg": "#f1f5f9", "header_color": "#0f172a", "border": "#dbe7ff",
+        "shadow": "0 3px 10px rgba(0,0,0,0.05)", "radius": "14px", "font": "12px"
+    },
+    "심플": {
+        "header_bg": "#ffffff", "header_color": "#111827", "border": "#e5e7eb",
+        "shadow": "none", "radius": "6px", "font": "12px"
+    },
+    "논문": {
+        "header_bg": "#f8fafc", "header_color": "#000000", "border": "#111827",
+        "shadow": "none", "radius": "0px", "font": "11px"
+    },
+    "대시보드": {
+        "header_bg": "linear-gradient(135deg,#dbeafe,#eff6ff)", "header_color": "#1e3a8a", "border": "#bfdbfe",
+        "shadow": "0 6px 18px rgba(37,99,235,0.12)", "radius": "16px", "font": "12px"
+    },
+    "카드형": {
+        "header_bg": "linear-gradient(135deg,#ecfdf5,#f0fdfa)", "header_color": "#065f46", "border": "#bbf7d0",
+        "shadow": "0 8px 24px rgba(15,118,110,0.12)", "radius": "18px", "font": "13px"
+    },
+}
+_table_css = _table_style_map.get(table_theme, _table_style_map["대시보드"])
 
 
-def render_checkbox_group(label, options, key_prefix, default_all=True, columns=4):
-    """체크박스 그룹 — 기본값은 전체 선택."""
-    if not options:
-        return []
-    st.markdown(f"**{label}**")
-    selected = []
-    n_cols = min(len(options), columns)
-    cols = st.columns(n_cols)
-    for i, opt in enumerate(options):
-        safe = re.sub(r"\W+", "_", opt)
-        with cols[i % n_cols]:
-            if st.checkbox(opt, value=default_all, key=f"{key_prefix}_{safe}_{i}"):
-                selected.append(opt)
-    return selected
 
 
-def build_interactive_timeseries(df, x_col, y_col, title=None):
-    """줌·팬·호버가 가능한 Plotly 시계열 그래프."""
-    plot_df = df[[x_col, y_col]].copy()
-    plot_df[x_col] = pd.to_datetime(plot_df[x_col], errors="coerce")
-    plot_df[y_col] = pd.to_numeric(plot_df[y_col], errors="coerce")
-    plot_df = plot_df.dropna(subset=[x_col, y_col])
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=plot_df[x_col],
-            y=plot_df[y_col],
-            mode="lines+markers",
-            name=str(y_col),
-            line=dict(width=2.5),
-            marker=dict(size=7),
-            hovertemplate="조사일자: %{x|%Y-%m-%d}<br>값: %{y:.3f}<extra></extra>",
-        )
-    )
-    fig.update_layout(
-        title=title or f"{y_col} 시계열",
-        xaxis_title="조사일자",
-        yaxis_title=str(y_col),
-        hovermode="x unified",
-        showlegend=False,
-        height=380,
-        dragmode="zoom",
-        template="plotly_white",
-        paper_bgcolor="#ffffff",
-        plot_bgcolor="#f8fafc",
-        font=dict(color="#1e293b", size=12),
-    )
-    fig.update_xaxes(
-        rangeslider_visible=False,
-        gridcolor="#e2e8f0",
-        linecolor="#cbd5e1",
-        tickfont=dict(color="#334155"),
-        title_font=dict(color="#1e293b"),
-    )
-    fig.update_yaxes(
-        gridcolor="#e2e8f0",
-        linecolor="#cbd5e1",
-        tickfont=dict(color="#334155"),
-        title_font=dict(color="#1e293b"),
-    )
-    return fig
 
 
-def fig_temporal_shap_bar(week_df):
-    """Temporal SHAP — 기본 막대 그래프 (원본 스타일)."""
-    week_df = week_df.sort_values("Week")
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ax.bar(
-        week_df["Week"].astype(str),
-        week_df["TotalMeanAbsSHAP"],
-        color="#3b82f6",
-        edgecolor="#1e40af",
-        linewidth=0.8,
-        width=0.65,
-    )
-    ax.set_title("주차별 영향도", fontweight="bold", color="#1e293b")
-    ax.set_xlabel("시간 단위: 주(week)")
-    ax.set_ylabel("단위: Mean(|SHAP value|)")
-    ax.grid(True, linestyle="--", alpha=0.4, axis="y")
-    ax.set_axisbelow(True)
-    return fig
+
+st.markdown(
+    f"""
+    <style>
+    /* 선택형 표 디자인 */
+    div[data-testid="stDataFrame"] {{
+        border-radius: {_table_css['radius']} !important;
+        overflow: hidden !important;
+        border: 1px solid {_table_css['border']} !important;
+        box-shadow: {_table_css['shadow']} !important;
+        font-size: calc({_table_css['font']} * {font_scale}) !important;
+    }}
+    div[data-testid="stDataFrame"] * {{
+        font-size: calc({_table_css['font']} * {font_scale}) !important;
+    }}
+    table {{
+        font-size: calc({_table_css['font']} * {font_scale}) !important;
+        border-collapse: collapse !important;
+    }}
+    thead tr th, .xai-table th {{
+        background: {_table_css['header_bg']} !important;
+        color: {_table_css['header_color']} !important;
+        font-weight: 800 !important;
+    }}
+    .xai-table {{
+        border: 1px solid {_table_css['border']} !important;
+        border-radius: {_table_css['radius']} !important;
+        box-shadow: {_table_css['shadow']} !important;
+    }}
+    .xai-card, .xai-subcard, .pretty-box {{
+        border-radius: {_table_css['radius']} !important;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    f"""
+    <style>
+
+    /* 전체 배경 */
+    .stApp {{
+        background: {selected_bg};
+        transition: all 0.3s ease-in-out;
+    }}
+
+    /* 글자 색상 */
+    h1,h2,h3,h4,p,span,label {{
+        color: {"#ffffff" if bg_theme == "Dark Navy" else "#183b56"} !important;
+    }}
+
+    /* 메인 영역 */
+    .block-container {{
+        padding-top: 1.0rem;
+        padding-bottom: 0.5rem;
+        padding-left: 1.2rem;
+        padding-right: 1.2rem;
+    }}
+
+    /* 카드 */
+    .pretty-box {{
+        background: rgba(255,255,255,0.82);
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+        border: 1px solid rgba(255,255,255,0.5);
+        backdrop-filter: blur(8px);
+        margin-bottom: 14px;
+    }}
+
+    /* dataframe */
+    div[data-testid="stDataFrame"] {{
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid #dbe7ff;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    }}
+
+    /* metric */
+    [data-testid="metric-container"] {{
+        background: linear-gradient(135deg,#ffffff,#f5f9ff);
+        border: 1px solid #d9e8ff;
+        padding: 12px;
+        border-radius: 14px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    }}
+
+    /* 버튼 */
+    .stButton > button {{
+        border-radius: 12px;
+        background: linear-gradient(135deg,#3b82f6,#2563eb);
+        color: white;
+        border: none;
+        font-weight: 600;
+    }}
+
+    /* sidebar */
+    section[data-testid="stSidebar"] {{
+        background: linear-gradient(180deg,#183b56,#1e4f73);
+    }}
+
+    section[data-testid="stSidebar"] * {{
+        color: white !important;
+    }}
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
 
-def fig_feature_week_heatmap(heatmap_df, target_col=None):
-    """Feature × Week Heatmap — 정적 matplotlib."""
-    hm = heatmap_df.copy()
-    hm = hm.reindex(sorted(hm.columns, key=lambda x: int(x)), axis=1)
-    y_labels = [pretty_time_text(idx) for idx in hm.index]
-    x_labels = [f"{int(c)}주" for c in hm.columns]
-    z = hm.values.astype(float)
 
-    fig_h, ax_h = plt.subplots(figsize=(max(8, len(x_labels) * 0.85), max(5.5, len(y_labels) * 0.42)))
-    im = ax_h.imshow(z, aspect="auto", cmap="Blues", interpolation="nearest", vmin=0)
-    ax_h.set_xticks(range(len(x_labels)))
-    ax_h.set_xticklabels(x_labels, fontsize=10)
-    ax_h.set_yticks(range(len(y_labels)))
-    ax_h.set_yticklabels(y_labels, fontsize=9)
-    ax_h.set_xlabel("시간 단위: 주(week)", fontsize=11, color="#334155")
-    ax_h.set_ylabel("환경/생육 변수", fontsize=11, color="#334155")
-    title = "Feature × Week Heatmap"
-    if target_col:
-        title += f" (예측: {target_col})"
-    ax_h.set_title(title, fontweight="bold", color="#1e293b", pad=12)
-
-    if z.size <= 84:
-        for i in range(z.shape[0]):
-            for j in range(z.shape[1]):
-                val = z[i, j]
-                txt_color = "white" if val > z.max() * 0.55 else "#1e293b"
-                ax_h.text(j, i, f"{val:.3f}", ha="center", va="center", fontsize=8, color=txt_color)
-
-    cbar = fig_h.colorbar(im, ax=ax_h, shrink=0.88, pad=0.02)
-    cbar.set_label("Mean(|SHAP|)", fontsize=10, color="#334155")
-    cbar.ax.tick_params(labelsize=9, colors="#334155")
-    fig_h.tight_layout()
-    return fig_h
-
-
-def fig_ice_pdp(xs, ice_curves_y, pdp_x, pdp_y, feature_name, best_interval=None):
-    """ICE + PDP — 정적 matplotlib (최적 구간 하이라이트)."""
-    fig, ax = plt.subplots(figsize=(6.5, 4.5))
-    for preds in ice_curves_y:
-        ax.plot(xs, preds, color="#93c5fd", alpha=0.35, linewidth=1.2)
-    ax.plot(pdp_x, pdp_y, color="#dc2626", linewidth=3, label="PDP", zorder=5)
-    if best_interval:
-        start, end = best_interval
-        ax.axvspan(start, end, alpha=0.18, color="#10b981", label="최적 구간", zorder=1)
-    ax.set_title(f"ICE + PDP: {feature_name}", fontweight="bold", color="#1e293b", pad=10)
-    ax.set_xlabel(feature_name, fontsize=11, color="#334155")
-    ax.set_ylabel("Predicted", fontsize=11, color="#334155")
-    ax.legend(loc="best", framealpha=0.9, edgecolor="#e2e8f0")
-    ax.grid(True, linestyle="--", alpha=0.4)
-    ax.set_axisbelow(True)
-    fig.tight_layout()
-    return fig
-
-
-def fig_centered_ale(bin_centers, ale_vals, feature_name, pos_intervals=None, neg_intervals=None):
-    """Centered ALE — 정적 matplotlib (양/음 구간 색상)."""
-    fig, ax = plt.subplots(figsize=(6, 4))
-    for a, b, _ in (neg_intervals or []):
-        ax.axvspan(a, b, alpha=0.15, color="#fca5a5", zorder=1)
-    for a, b, _ in (pos_intervals or []):
-        ax.axvspan(a, b, alpha=0.18, color="#86efac", zorder=1)
-    ax.axhline(0, color="#94a3b8", linestyle="--", linewidth=1, zorder=2)
-    if len(bin_centers) > 1:
-        ax.plot(bin_centers, ale_vals, color="#7c3aed", linewidth=2.5, marker="o",
-                markersize=7, markerfacecolor="#7c3aed", markeredgecolor="#ffffff", markeredgewidth=1.5, zorder=4)
-    else:
-        ax.hlines(ale_vals[0], bin_centers[0] - 0.5, bin_centers[0] + 0.5, colors="#7c3aed", linewidth=2.5)
-    ax.set_title(f"Centered ALE: {feature_name}", fontweight="bold", color="#1e293b", pad=10)
-    ax.set_xlabel(feature_name, fontsize=11, color="#334155")
-    ax.set_ylabel("ALE", fontsize=11, color="#334155")
-    ax.grid(True, linestyle="--", alpha=0.4)
-    ax.set_axisbelow(True)
-    fig.tight_layout()
-    return fig
-
-
-def _apply_plotly_light_layout(fig, height=400, title=None):
-    """Plotly 공통 밝은 테마."""
-    layout_kwargs = dict(
-        template="plotly_white",
-        paper_bgcolor="#ffffff",
-        plot_bgcolor="#f8fafc",
-        font=dict(color="#1e293b", size=12),
-        height=height,
-        hovermode="closest",
-        margin=dict(l=20, r=20, t=60 if title else 40, b=40),
-    )
-    if title:
-        layout_kwargs["title"] = dict(text=title, font=dict(size=15, color="#1e293b"), x=0)
-    fig.update_layout(**layout_kwargs)
-    fig.update_xaxes(gridcolor="#e2e8f0", linecolor="#cbd5e1", tickfont=dict(color="#334155"))
-    fig.update_yaxes(gridcolor="#e2e8f0", linecolor="#cbd5e1", tickfont=dict(color="#334155"))
-    return fig
-
-
-def build_weekly_metric_chart(weekly_df, metric, title, color):
-    """1~7주 MSE / MAE / R² 인터랙티브 라인 차트."""
-    weeks = weekly_df["Week"].tolist()
-    values = weekly_df[metric].tolist()
-    fill_map = {
-        "#2563eb": "rgba(37,99,235,0.12)",
-        "#0d9488": "rgba(13,148,136,0.12)",
-        "#d97706": "rgba(217,119,6,0.12)",
+st.markdown(
+    '''
+    <style>
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 0rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
     }
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=weeks,
-            y=values,
-            mode="lines+markers",
-            name=metric,
-            line=dict(color=color, width=3, shape="spline"),
-            marker=dict(size=10, color=color, line=dict(color="#ffffff", width=2)),
-            fill="tozeroy",
-            fillcolor=fill_map.get(color, "rgba(37,99,235,0.12)"),
-            hovertemplate="주차: %{x}주<br>%{fullData.name}: %{y:.4f}<extra></extra>",
-        )
-    )
-    y_labels = {"MSE": "MSE (평균제곱오차)", "MAE": "MAE (평균절대오차)", "R2": "R² (결정계수)"}
-    _apply_plotly_light_layout(fig, height=340, title=title)
-    fig.update_xaxes(title="주차", dtick=1)
-    fig.update_yaxes(title=y_labels.get(metric, metric))
-    return fig
+
+    div[data-testid="stDataFrame"] {
+        font-size: 12px;
+    }
+
+    table {
+        font-size: 12px !important;
+    }
+
+    .element-container {
+        margin-bottom: 0.3rem;
+    }
+    </style>
+    ''',
+    unsafe_allow_html=True
+)
 
 
+st.markdown(
+    """
+    <style>
+    .xai-card {
+        background: rgba(255,255,255,0.88);
+        border-radius: 20px;
+        padding: 20px 22px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        border: 1px solid rgba(226, 232, 240, 0.9);
+        margin: 10px 0 18px 0;
+    }
+    .xai-hero {
+        background: linear-gradient(135deg, #0f766e 0%, #2563eb 55%, #7c3aed 100%);
+        border-radius: 22px;
+        padding: 24px;
+        color: white !important;
+        box-shadow: 0 14px 34px rgba(37,99,235,0.25);
+        margin-bottom: 18px;
+    }
+    .xai-hero * { color: white !important; }
+    .xai-pill-wrap {
+        display:flex; gap:12px; flex-wrap:wrap; margin-top:16px;
+    }
+    .xai-pill {
+        flex:1; min-width:180px;
+        background: rgba(255,255,255,0.16);
+        border:1px solid rgba(255,255,255,0.28);
+        border-radius:16px; padding:14px;
+        backdrop-filter: blur(8px);
+    }
+    .xai-pill .label { font-size:13px; opacity:0.9; }
+    .xai-pill .value { font-size:25px; font-weight:900; margin-top:4px; }
+    .xai-subcard {
+        background: linear-gradient(135deg,#ffffff,#f8fbff);
+        border-radius:16px;
+        padding:16px;
+        border:1px solid #e2e8f0;
+        box-shadow:0 5px 16px rgba(15,23,42,0.06);
+        line-height:1.65;
+        font-size:15px;
+    }
+    .xai-note {
+        border-left: 5px solid #2563eb;
+        background: #eff6ff;
+        padding: 12px 14px;
+        border-radius: 12px;
+        line-height: 1.65;
+        margin: 10px 0;
+    }
+    .xai-table {
+        width:100%;
+        border-collapse:collapse;
+        font-size:14px;
+        background:white;
+        border-radius:14px;
+        overflow:hidden;
+    }
+    .xai-table th {
+        background:#f1f5f9;
+        color:#0f172a !important;
+        text-align:left;
+        padding:10px;
+        border-bottom:1px solid #cbd5e1;
+    }
+    .xai-table td {
+        padding:10px;
+        border-bottom:1px solid #e5e7eb;
+        vertical-align:top;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+st.title("🍅 설명가능 AI 기반 토마토 생육(수확) 분석 통합 대시보드")
 # Counterfactual 안정화 패치 적용
 
 # -------------------------------------------------------------
@@ -426,9 +451,6 @@ def infer_controllable_features(feature_names):
     selected = []
     for f in feature_names:
         low = str(f).lower()
-        fname = str(f)
-        if "내부" in fname and ("일사" in fname or "광" in fname):
-            continue
         if any(k.lower() in low for k in keywords):
             selected.append(f)
     return selected
@@ -439,28 +461,16 @@ def build_window_feature_name(week, suffix):
 
 
 def pick_column_index(columns, candidates, fallback=0):
-    from column_mapping import pick_column_index as _pick
-    return _pick(columns, candidates, fallback)
-
-
-def is_external_cumulative_solar_column(col) -> bool:
-    from column_mapping import is_external_cumulative_solar_column as _is
-    return _is(col)
-
-
-def list_external_cumulative_solar_columns(columns):
-    from column_mapping import list_external_cumulative_solar_columns as _list
-    return _list(columns)
-
-
-def pick_external_cumulative_solar_index(columns, fallback=None):
-    from column_mapping import pick_external_cumulative_solar_index as _pick
-    return _pick(columns, fallback)
-
-
-def pick_external_cumulative_solar_column(columns):
-    from column_mapping import pick_external_cumulative_solar_column as _pick
-    return _pick(columns)
+    """컬럼명 후보 목록에서 가장 먼저 매칭되는 인덱스를 반환합니다."""
+    cols = list(columns)
+    for name in candidates:
+        if name in cols:
+            return cols.index(name)
+    for name in candidates:
+        for i, col in enumerate(cols):
+            if name in str(col):
+                return i
+    return fallback if fallback < len(cols) else 0
 
 
 def aggregate_fruit_level_yield(yield_df, date_col):
@@ -565,30 +575,30 @@ def display_plotly(fig, use_container_width=True):
     """Plotly 그래프 템플릿을 적용해 안전하게 출력합니다."""
     try:
         fig.update_layout(
-            template="plotly_white",
-            font=dict(size=max(10, int(12 * font_scale)), color="#1e293b"),
+            template=plotly_template,
+            font=dict(size=max(10, int(12 * font_scale))),
             margin=dict(l=20, r=20, t=45, b=20),
-            paper_bgcolor="#ffffff",
-            plot_bgcolor="#f8fafc",
         )
-        fig.update_xaxes(gridcolor="#e2e8f0", linecolor="#cbd5e1")
-        fig.update_yaxes(gridcolor="#e2e8f0", linecolor="#cbd5e1")
     except Exception as e:
         st.warning(f"Plotly 디자인 적용 중 경고: {e}")
-    st.plotly_chart(
-        fig,
-        use_container_width=use_container_width,
-        config={
-            "scrollZoom": True,
-            "displaylogo": False,
-            "modeBarButtonsToAdd": ["zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"],
-        },
-    )
+    st.plotly_chart(fig, use_container_width=use_container_width)
 
 
 def style_dataframe(df):
-    """표 스타일을 적용해 pandas Styler를 반환합니다. 오류 시 원본 DataFrame 반환."""
-    return df
+    """표 디자인 선택에 따라 pandas Styler를 반환합니다. 오류 시 원본 DataFrame 반환."""
+    try:
+        if table_theme == "논문":
+            return df.style.set_table_styles([
+                {"selector": "th", "props": [("background-color", "#f8fafc"), ("color", "#000"), ("font-weight", "bold")]},
+                {"selector": "td", "props": [("border-bottom", "1px solid #e5e7eb")]},
+            ]).format(precision=3)
+        if table_theme == "카드형":
+            return df.style.set_table_styles([
+                {"selector": "th", "props": [("background", "#ecfdf5"), ("color", "#065f46"), ("font-weight", "bold")]},
+            ]).format(precision=3)
+        return df
+    except Exception:
+        return df
 
 
 def pretty_time_text(value):
@@ -1589,13 +1599,7 @@ def compute_rolling_summary(sensor_df, yield_df, date_col_sensor, date_col_yield
 
         results.append(result_row)
 
-    out = pd.DataFrame(results)
-    if out.empty or "조사일자" not in out.columns:
-        base_cols = ["조사일자", "수확수", "착과수", temp_day_col_name, temp_night_col_name,
-                     hum_day_col_name, hum_night_col_name, co2_day_col_name, co2_night_col_name, solar_col_name]
-        base_cols += [gf for gf in growth_cols]
-        return pd.DataFrame(columns=base_cols)
-    return out.sort_values("조사일자").reset_index(drop=True)
+    return pd.DataFrame(results).sort_values("조사일자").reset_index(drop=True)
 
 
 
@@ -1811,16 +1815,269 @@ def generate_comprehensive_report(
 
 
 # -------------------------------------------------------------
-# UI — A-DIMS 4탭 (HTML v0.04) + 상세 XAI
+# UI
 # -------------------------------------------------------------
-def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, sensor_df=None, yield_df=None):
-    """예측 탭 expander — 기존 XAI·모델 분석 파이프라인."""
+crop_name = st.selectbox("작물 선택", ["토마토", "오이"])
+sensor_file = st.file_uploader("환경센서 데이터 업로드 (CSV)", type=["csv"])
+yield_file = st.file_uploader("수확/생육 데이터 업로드 (CSV)", type=["csv"])
+
+if sensor_file and yield_file:
+    sensor_df = pd.read_csv(sensor_file)
+    yield_df = pd.read_csv(yield_file)
+
+    st.subheader("환경센서 데이터")
+    st.dataframe(sensor_df.head())
+    st.subheader("수확/생육 데이터")
+    st.dataframe(yield_df.head())
+
+    yield_df = aggregate_fruit_level_yield(yield_df, "조사일자" if "조사일자" in yield_df.columns else yield_df.columns[0])
+
+    st.subheader("컬럼 선택")
+    st.markdown("**환경 센서 데이터 컬럼 선택**")
+    c1, c2, c3, c4, c5 = st.columns(5)
+    with c1:
+        date_col_sensor = st.selectbox(
+            "날짜시간",
+            sensor_df.columns,
+            index=pick_column_index(sensor_df.columns, ["측정시간", "측정 일자", "날짜시간", "일시", "날짜", "Date", "datetime"]),
+        )
+    with c2:
+        temp_col = st.selectbox(
+            "온도",
+            sensor_df.columns,
+            index=pick_column_index(sensor_df.columns, ["온도_내부", "내부온도", "온도"]),
+        )
+    with c3:
+        hum_col = st.selectbox(
+            "습도",
+            sensor_df.columns,
+            index=pick_column_index(sensor_df.columns, ["상대습도_내부", "습도_내부", "습도"]),
+        )
+    with c4:
+        co2_col = st.selectbox(
+            "CO₂",
+            sensor_df.columns,
+            index=pick_column_index(sensor_df.columns, ["잔존CO2", "CO2", "CO₂", "co2"]),
+        )
+    with c5:
+        solar_col = st.selectbox(
+            "일사량",
+            sensor_df.columns,
+            index=pick_column_index(sensor_df.columns, ["누적일사량_외부", "일사량_외부", "일사량", "누적일사량"]),
+        )
+
+    st.markdown("---")
+    st.markdown("**수확량 데이터 컬럼 선택**")
+    c6, c7, c8 = st.columns(3)
+    with c6:
+        date_col_yield = st.selectbox(
+            "조사일자",
+            yield_df.columns,
+            index=pick_column_index(yield_df.columns, ["조사일자", "날짜", "Date", "date"]),
+        )
+    with c7:
+        harvest_count_col = st.selectbox(
+            "수확수",
+            yield_df.columns,
+            index=pick_column_index(yield_df.columns, ["화방별수확수", "수확수", "수확과수"]),
+        )
+    with c8:
+        harvest_weight_col = st.selectbox(
+            "착과수",
+            yield_df.columns,
+            index=pick_column_index(yield_df.columns, ["화방별착과수", "착과수", "수확과중"]),
+        )
+
+    st.markdown("---")
+    st.markdown("**추가 생육 컬럼 선택**")
+
+    if crop_name == "토마토":
+        growth_features = ["초장", "생장길이", "엽수", "엽장", "엽폭", "줄기굵기", "화방높이"]
+    else:
+        growth_features = ["초장", "엽수", "엽장", "엽폭", "줄기굵기", "화방높이"]
+
+    growth_cols = {}
+    for i in range(0, len(growth_features), 3):
+        cols = st.columns(3)
+        for j, gf in enumerate(growth_features[i:i + 3]):
+            with cols[j]:
+                options = [None] + yield_df.columns.tolist()
+                default_idx = yield_df.columns.get_loc(gf) + 1 if gf in yield_df.columns else 0
+                growth_cols[gf] = st.selectbox(gf, options, index=default_idx, key=f"growth_{gf}")
+
+    # 날짜 처리
+    sensor_df[date_col_sensor] = pd.to_datetime(sensor_df[date_col_sensor], errors='coerce')
+    yield_df[date_col_yield] = pd.to_datetime(yield_df[date_col_yield], errors='coerce')
+    sensor_df = sensor_df.dropna(subset=[date_col_sensor]).copy()
+    yield_df = yield_df.dropna(subset=[date_col_yield]).copy()
+    sensor_df["date"] = sensor_df[date_col_sensor].dt.date
+    sensor_df["hour"] = sensor_df[date_col_sensor].dt.hour
+    sensor_df["time"] = sensor_df[date_col_sensor].dt.time
+
+    # 수치형 변환
+    for col in [temp_col, hum_col, co2_col, solar_col]:
+        sensor_df[col] = pd.to_numeric(sensor_df[col], errors='coerce')
+    date_cols = {date_col_yield, date_col_sensor}
+    for col in [harvest_count_col, harvest_weight_col] + [c for c in growth_cols.values() if c is not None]:
+        if col and col in yield_df.columns and col not in date_cols:
+            yield_df[col] = pd.to_numeric(yield_df[col], errors='coerce')
+
+    if "weeks" not in st.session_state:
+        st.session_state.weeks = 7
+
+    def update_weeks_1():
+        st.session_state.weeks = st.session_state.weeks_slider_1
+
+    weeks1 = st.slider("평균 계산 기간 (주 단위) - 센서 평균용", 1, 7, st.session_state.weeks, key="weeks_slider_1", on_change=update_weeks_1)
+    selected_week = st.session_state.weeks
+
+    # 선택 주차 데이터 + 전체 1~7주 데이터 생성
+    week_dfs = {}
+    for week in range(1, 8):
+        week_dfs[week] = compute_rolling_summary(
+            sensor_df=sensor_df,
+            yield_df=yield_df,
+            date_col_sensor=date_col_sensor,
+            date_col_yield=date_col_yield,
+            temp_col=temp_col,
+            hum_col=hum_col,
+            co2_col=co2_col,
+            solar_col=solar_col,
+            harvest_count_col=harvest_count_col,
+            harvest_weight_col=harvest_weight_col,
+            growth_cols=growth_cols,
+            week=week,
+        )
+
+    df = week_dfs[selected_week].copy()
+
+    env_feature_cols = [
+        build_window_feature_name(selected_week, suffix)
+        for suffix in [
+            "평균주간온도(08~18시)", "평균야간온도(19~07시)",
+            "평균주간습도(08~18시)", "평균야간습도(19~07시)",
+            "평균주간CO₂(08~18시)", "평균야간CO₂(19~07시)",
+            "평균누적일사량(1일최대값기준)",
+        ]
+    ]
+    env_feature_cols = [c for c in env_feature_cols if c in df.columns]
+    if env_feature_cols and df[env_feature_cols].notna().sum().sum() == 0:
+        sensor_min = sensor_df[date_col_sensor].min()
+        sensor_max = sensor_df[date_col_sensor].max()
+        yield_min = yield_df[date_col_yield].min()
+        yield_max = yield_df[date_col_yield].max()
+        st.warning(
+            "7주 평균 환경값이 모두 비어 있습니다. "
+            f"센서 날짜 컬럼(`{date_col_sensor}`)과 조사일자 기간이 겹치는지 확인해 주세요. "
+            f"센서: {sensor_min} ~ {sensor_max}, 조사: {yield_min} ~ {yield_max}"
+        )
+
+    st.subheader("매핑 데이터")
+    st.dataframe(df)
+
+    # 환경 시계열 표시용 컬럼명
+    temp_day_col_name = build_window_feature_name(selected_week, "평균주간온도(08~18시)")
+    temp_night_col_name = build_window_feature_name(selected_week, "평균야간온도(19~07시)")
+    hum_day_col_name = build_window_feature_name(selected_week, "평균주간습도(08~18시)")
+    hum_night_col_name = build_window_feature_name(selected_week, "평균야간습도(19~07시)")
+    co2_day_col_name = build_window_feature_name(selected_week, "평균주간CO₂(08~18시)")
+    co2_night_col_name = build_window_feature_name(selected_week, "평균야간CO₂(19~07시)")
+    solar_col_name = build_window_feature_name(selected_week, "평균누적일사량(1일최대값기준)")
+
+    env_mapping = {
+        temp_day_col_name: temp_day_col_name,
+        temp_night_col_name: temp_night_col_name,
+        hum_day_col_name: hum_day_col_name,
+        hum_night_col_name: hum_night_col_name,
+        co2_day_col_name: co2_day_col_name,
+        co2_night_col_name: co2_night_col_name,
+        solar_col_name: solar_col_name,
+    }
+
+    env_cols = st.multiselect("환경 그래프로 표시할 항목 선택", list(env_mapping.keys()), default=list(env_mapping.keys()))
+    if env_cols:
+        for i in range(0, len(env_cols), 2):
+            cols = st.columns(2)
+            for j, label in enumerate(env_cols[i:i + 2]):
+                with cols[j]:
+                    true_col = env_mapping[label]
+                    if true_col in df.columns:
+                        fig, ax = plt.subplots(figsize=(5, 3))
+                        ax.plot(df["조사일자"], df[true_col], marker="o", linestyle="-")
+                        ax.set_title(f"{label} 시계열")
+                        ax.set_xlabel("조사일자")
+                        ax.set_ylabel(label)
+                        ax.tick_params(axis='x', rotation=45)
+                        ax.grid(True, linestyle="--", alpha=0.5)
+                        display_matplotlib(fig)
+                        plt.close(fig)
+
+                        env_desc = explain_environment_timeseries(
+                            label,
+                            df[true_col]
+                        )
+
+                        st.markdown(
+                            f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
+                            padding:12px;
+                            border-radius:10px;
+                            line-height:1.8;
+                            font-size:15px;
+                            margin-bottom:20px">{env_desc}</div>""",
+                            unsafe_allow_html=True
+                        )
+
+                        st.markdown("**환경구간 기준표**")
+                        st.dataframe(
+                            environment_zone_reference_table(label),
+                            use_container_width=True,
+                            hide_index=True
+                        )
+
+                        st.markdown("**월별 환경구간 분류표**")
+                        monthly_zone_df = build_monthly_environment_zone_table(
+                            df,
+                            "조사일자",
+                            label,
+                            true_col
+                        )
+                        st.dataframe(
+                            monthly_zone_df,
+                            use_container_width=True,
+                            hide_index=True
+                        )
+
+    df = df.sort_values("조사일자")
+    growth_options = ["수확수", "착과수"] + growth_features
+
+    plot_cols = st.multiselect("그래프로 표시할 항목 선택", growth_options, default=["수확수", "착과수"])
+    if plot_cols:
+        for i in range(0, len(plot_cols), 3):
+            cols = st.columns(3)
+            for j, col_name in enumerate(plot_cols[i:i + 3]):
+                with cols[j]:
+                    if col_name in df.columns:
+                        fig, ax = plt.subplots(figsize=(4.5, 3))
+                        ax.plot(df["조사일자"], df[col_name], marker="o", linestyle="-")
+                        ax.set_title(f"{col_name} 시계열")
+                        ax.set_xlabel("조사일자")
+                        ax.set_ylabel(col_name)
+                        ax.tick_params(axis='x', rotation=45)
+                        ax.grid(True, linestyle="--", alpha=0.5)
+                        display_matplotlib(fig)
+                        plt.close(fig)
+
+    # 모델 학습은 선택 주차 기준
+    st.subheader("모델 선택")
     model_options = ["RandomForest", "GradientBoosting", "XGBoost", "LGBM", "GaussianNB"]
-    mc1, mc2 = st.columns(2)
-    with mc1:
-        model_choice = st.selectbox("모델 선택", model_options, key="xai_model")
-    with mc2:
-        target_col = st.selectbox("예측 대상", ["수확수", "착과수"] + growth_features, key="xai_target")
+    model_choice = st.selectbox("모델 선택", model_options)
+    target_col = st.selectbox("예측 대상 컬럼 선택", ["수확수", "착과수"] + growth_features)
+
+    st.info(
+        f"현재 선택한 모델은 **{model_choice}**이고, 예측 대상은 **{target_col}**입니다. "
+        "이후 SHAP, Feature Importance, Feature × Week Heatmap, ICE+PDP, Centered ALE 결과는 "
+        "모두 이 모델과 예측 대상을 기준으로 계산됩니다."
+    )
 
     features = [col for col in df.columns if col not in ["조사일자", "수확수", "착과수"] + growth_features]
     X = df[features].copy().fillna(df[features].mean(numeric_only=True))
@@ -1828,40 +2085,49 @@ def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, 
     valid_mask = y.notna()
     X = X.loc[valid_mask].copy()
     y = y.loc[valid_mask].copy()
-    if len(X) < 5:
-        st.warning("XAI 분석을 위한 데이터가 부족합니다.")
-        return
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     model = make_model(model_choice)
     model.fit(X_train, y_train)
     y_pred = safe_predict(model, X_test, features)
+
+    st.subheader("모델 평가 지표")
     metrics = compute_metrics(y_test, y_pred)
 
-    st.markdown(f"**모델 평가** ({selected_week}주 · {target_col})")
-    render_kpi_cards([
-        ("MSE", f"{metrics['MSE']:.3f}", "#4E79A7"),
-        ("MAE", f"{metrics['MAE']:.3f}", "#4F9D5B"),
-        ("R²", f"{metrics['R2']:.3f}", "#D99220"),
-    ])
-
-    _run_legacy_xai_body(
-        df=df, week_dfs=week_dfs, selected_week=selected_week,
-        growth_features=growth_features, model_choice=model_choice,
-        target_col=target_col, features=features, model=model,
-        X_train=X_train, X_test=X_test, metrics=metrics,
+    st.markdown(
+        f"""
+<div style="background:linear-gradient(135deg,#ffffff,#eaf3ff);
+            box-shadow:0 8px 24px rgba(0,0,0,0.08);
+            padding:18px;
+            border-radius:16px;
+            border-left:6px solid #2563eb;
+            margin-bottom:14px;">
+    <div style="font-size:18px; font-weight:800; color:#183b56;">
+        ({selected_week}주평균, 예측대상: {target_col})
+    </div>
+    <div style="display:flex; gap:18px; margin-top:12px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:180px; background:#ffffff; border-radius:14px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,0.05);">
+            <div style="font-size:14px; color:#64748b;">MSE</div>
+            <div style="font-size:26px; font-weight:900; color:#1d4ed8;">{metrics['MSE']:.3f}</div>
+        </div>
+        <div style="flex:1; min-width:180px; background:#ffffff; border-radius:14px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,0.05);">
+            <div style="font-size:14px; color:#64748b;">MAE</div>
+            <div style="font-size:26px; font-weight:900; color:#0f766e;">{metrics['MAE']:.3f}</div>
+        </div>
+        <div style="flex:1; min-width:180px; background:#ffffff; border-radius:14px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,0.05);">
+            <div style="font-size:14px; color:#64748b;">R²</div>
+            <div style="font-size:26px; font-weight:900; color:#b45309;">{metrics['R2']:.3f}</div>
+        </div>
+    </div>
+</div>
+        """,
+        unsafe_allow_html=True
     )
 
-
-def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_choice,
-                         target_col, features, model, X_train, X_test, metrics):
-    """기존 XAI 분석 본문 (SHAP · Counterfactual · ICE · ALE · 리포트)."""
-    crop_name = st.session_state.get("dims_crop", "토마토")
-    _ = crop_name  # legacy compat
-
+    # -------------------------------------------------------------
     # 1~7주 모델 성능 비교
     # -------------------------------------------------------------
-    render_section_header("1~7주 모델 성능 비교", "주차별 예측 성능 변화 추이", "📈", accent="teal")
+    st.subheader("📊 1~7주 모델 성능 비교")
 
     weekly_metrics = []
 
@@ -1928,14 +2194,71 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
 
             col_mse, col_mae, col_r2 = st.columns(3)
 
+            # -------------------------------------------------
+            # MSE
+            # -------------------------------------------------
             with col_mse:
-                display_plotly(build_weekly_metric_chart(weekly_metrics_df, "MSE", "MSE (평균제곱오차)", "#2563eb"))
 
+                fig_mse, ax_mse = plt.subplots(figsize=(4, 3))
+
+                ax_mse.plot(
+                    weekly_metrics_df["Week"],
+                    weekly_metrics_df["MSE"],
+                    marker="o",
+                    linewidth=2
+                )
+
+                ax_mse.set_xlabel("주차")
+                ax_mse.set_ylabel("MSE (평균제곱오차)")
+                # ax_mse.set_title("MSE (평균제곱오차)")
+                ax_mse.grid(True, linestyle="--", alpha=0.5)
+
+                display_matplotlib(fig_mse)
+                plt.close(fig_mse)
+
+            # -------------------------------------------------
+            # MAE
+            # -------------------------------------------------
             with col_mae:
-                display_plotly(build_weekly_metric_chart(weekly_metrics_df, "MAE", "MAE (평균절대오차)", "#0d9488"))
 
+                fig_mae, ax_mae = plt.subplots(figsize=(4, 3))
+
+                ax_mae.plot(
+                    weekly_metrics_df["Week"],
+                    weekly_metrics_df["MAE"],
+                    marker="o",
+                    linewidth=2
+                )
+
+                ax_mae.set_xlabel("주차")
+                ax_mae.set_ylabel("MAE (평균절대오차)")
+                # ax_mae.set_title("MAE (평균절대오차)")
+                ax_mae.grid(True, linestyle="--", alpha=0.5)
+
+                display_matplotlib(fig_mae)
+                plt.close(fig_mae)
+
+            # -------------------------------------------------
+            # R²
+            # -------------------------------------------------
             with col_r2:
-                display_plotly(build_weekly_metric_chart(weekly_metrics_df, "R2", "R² (결정계수)", "#d97706"))
+
+                fig_r2, ax_r2 = plt.subplots(figsize=(4, 3))
+
+                ax_r2.plot(
+                    weekly_metrics_df["Week"],
+                    weekly_metrics_df["R2"],
+                    marker="o",
+                    linewidth=2
+                )
+
+                ax_r2.set_xlabel("주차")
+                ax_r2.set_ylabel("R² (결정계수)")
+                # ax_r2.set_title("R² (결정계수)")
+                ax_r2.grid(True, linestyle="--", alpha=0.5)
+
+                display_matplotlib(fig_r2)
+                plt.close(fig_r2)
 
             st.markdown("### 📋 1~7주 모델 평가지표 표")
             st.dataframe(
@@ -1969,40 +2292,40 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
 
                 st.markdown(
                     f"""
-    <div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
-    padding:12px;
-    border-radius:10px;
-    line-height:1.45;
-    font-size:15px">
+<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
+padding:12px;
+border-radius:10px;
+line-height:1.45;
+font-size:15px">
 
-    <b>최적 R² 구간</b><br><br>
+<b>최적 R² 구간</b><br><br>
 
-    가장 높은 R² 성능은 <b>{int(best_r2_row['Week'])}주</b>에서 나타났으며,
-    R² 값은 <b>{best_r2_row['R2']:.4f}</b>입니다.<br><br>
+가장 높은 R² 성능은 <b>{int(best_r2_row['Week'])}주</b>에서 나타났으며,
+R² 값은 <b>{best_r2_row['R2']:.4f}</b>입니다.<br><br>
 
-    이는 해당 기간의 환경 데이터를 사용할 때
-    예측 대상({target_col})을 가장 잘 설명할 수 있었음을 의미합니다.<br><br>
+이는 해당 기간의 환경 데이터를 사용할 때
+예측 대상({target_col})을 가장 잘 설명할 수 있었음을 의미합니다.<br><br>
 
-    <b>최소 MSE 구간</b><br><br>
+<b>최소 MSE 구간</b><br><br>
 
-    가장 낮은 MSE는 <b>{int(best_mse_row['Week'])}주</b>에서 나타났으며,
-    MSE 값은 <b>{best_mse_row['MSE']:.4f}</b>입니다.<br><br>
+가장 낮은 MSE는 <b>{int(best_mse_row['Week'])}주</b>에서 나타났으며,
+MSE 값은 <b>{best_mse_row['MSE']:.4f}</b>입니다.<br><br>
 
-    즉, 해당 기간의 환경 누적 정보가
-    큰 예측 오차를 가장 작게 만든 구간으로 해석할 수 있습니다.<br><br>
+즉, 해당 기간의 환경 누적 정보가
+큰 예측 오차를 가장 작게 만든 구간으로 해석할 수 있습니다.<br><br>
 
-    <b>최소 MAE 구간</b><br><br>
+<b>최소 MAE 구간</b><br><br>
 
-    가장 낮은 MAE는 <b>{int(best_mae_row['Week'])}주</b>에서 나타났으며,
-    MAE 값은 <b>{best_mae_row['MAE']:.4f}</b>입니다.<br><br>
+가장 낮은 MAE는 <b>{int(best_mae_row['Week'])}주</b>에서 나타났으며,
+MAE 값은 <b>{best_mae_row['MAE']:.4f}</b>입니다.<br><br>
 
-    이는 실제값과 예측값의 평균적인 차이가 가장 작았던 구간으로,
-    현장 해석 관점에서 가장 직관적인 오차 최소 구간입니다.<br><br>
+이는 실제값과 예측값의 평균적인 차이가 가장 작았던 구간으로,
+현장 해석 관점에서 가장 직관적인 오차 최소 구간입니다.<br><br>
 
-    일반적으로 R²가 높고 MSE/MAE가 낮을수록
-    모델 성능이 우수한 것으로 해석합니다.
+일반적으로 R²가 높고 MSE/MAE가 낮을수록
+모델 성능이 우수한 것으로 해석합니다.
 
-    </div>
+</div>
                     """,
                     unsafe_allow_html=True
                 )
@@ -2011,31 +2334,31 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
 
                 st.markdown(
                     """
-    <div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
-    padding:12px;
-    border-radius:10px;
-    line-height:1.45;
-    font-size:15px">
+<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
+padding:12px;
+border-radius:10px;
+line-height:1.45;
+font-size:15px">
 
-    <b>R² 특징 설명</b><br><br>
+<b>R² 특징 설명</b><br><br>
 
-    R²(결정계수)는 모델이 실제 데이터 변동성을 얼마나 설명할 수 있는지를 나타냅니다.<br>
-    1에 가까울수록 설명력이 높으며, 0에 가까우면 평균 예측 수준과 유사한 상태를 의미합니다.<br>
-    즉, R²가 높을수록 환경데이터와 생육·수확 데이터 간 관계를 잘 학습했다고 볼 수 있습니다.<br><br>
+R²(결정계수)는 모델이 실제 데이터 변동성을 얼마나 설명할 수 있는지를 나타냅니다.<br>
+1에 가까울수록 설명력이 높으며, 0에 가까우면 평균 예측 수준과 유사한 상태를 의미합니다.<br>
+즉, R²가 높을수록 환경데이터와 생육·수확 데이터 간 관계를 잘 학습했다고 볼 수 있습니다.<br><br>
 
-    <b>MSE 특징 설명</b><br><br>
+<b>MSE 특징 설명</b><br><br>
 
-    MSE(Mean Squared Error)는 실제값과 예측값 차이의 제곱 평균입니다.<br>
-    큰 오차에 더 민감하게 반응하므로, 이상치나 큰 예측 실패가 존재할 경우 값이 크게 증가합니다.<br>
-    따라서 MSE가 낮다는 것은 모델이 큰 오차 없이 안정적으로 예측했다는 의미입니다.<br><br>
+MSE(Mean Squared Error)는 실제값과 예측값 차이의 제곱 평균입니다.<br>
+큰 오차에 더 민감하게 반응하므로, 이상치나 큰 예측 실패가 존재할 경우 값이 크게 증가합니다.<br>
+따라서 MSE가 낮다는 것은 모델이 큰 오차 없이 안정적으로 예측했다는 의미입니다.<br><br>
 
-    <b>MAE 특징 설명</b><br><br>
+<b>MAE 특징 설명</b><br><br>
 
-    MAE(Mean Absolute Error)는 실제값과 예측값 차이의 절대값 평균입니다.<br>
-    실제 평균적으로 얼마나 차이가 나는지를 직관적으로 보여주는 지표입니다.<br>
-    단위가 원래 목표변수와 동일하기 때문에 농업 현장에서는 해석이 비교적 쉬운 장점이 있습니다.
+MAE(Mean Absolute Error)는 실제값과 예측값 차이의 절대값 평균입니다.<br>
+실제 평균적으로 얼마나 차이가 나는지를 직관적으로 보여주는 지표입니다.<br>
+단위가 원래 목표변수와 동일하기 때문에 농업 현장에서는 해석이 비교적 쉬운 장점이 있습니다.
 
-    </div>
+</div>
                     """,
                     unsafe_allow_html=True
                 )
@@ -2047,9 +2370,12 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
     # -------------------------------------------------------------
     # Time-Series Cross Validation (수정 버전)
     # -------------------------------------------------------------
-    render_section_header("Time-Series Cross Validation", "시계열 분할 기반 모델 안정성 검증", "🧪", accent="amber")
+    st.subheader("📊 Time-Series Cross Validation 결과")
 
     try:
+        from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+        import numpy as np
+
         # 시간 순서 정렬 (매우 중요)
         df_cv = df.sort_values("조사일자").reset_index(drop=True)
 
@@ -2097,25 +2423,31 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
             cv_r2 = float(np.nanmean(r2_list))
 
             st.markdown("### 🧪 Time-Series CV 평균 성능")
-            render_kpi_cards([
-                ("MSE", f"{cv_mse:.3f}", "#2563eb"),
-                ("MAE", f"{cv_mae:.3f}", "#0d9488"),
-                ("R²", f"{cv_r2:.3f}", "#d97706"),
-            ])
+
+            cv_col1, cv_col2, cv_col3 = st.columns(3)
+
+            with cv_col1:
+                st.metric("MSE", f"{cv_mse:.3f}")
+
+            with cv_col2:
+                st.metric("MAE", f"{cv_mae:.3f}")
+
+            with cv_col3:
+                st.metric("R²", f"{cv_r2:.3f}")
 
             st.markdown(
                 f"""
-    <div style="background:linear-gradient(135deg,#ffffff,#eef5ff);
+<div style="background:linear-gradient(135deg,#ffffff,#eef5ff);
             box-shadow:0 6px 20px rgba(0,0,0,0.06);
             padding:16px;
             border-radius:14px;
             line-height:1.8;
             font-size:15px;">
-    <b>Time-Series Cross Validation 해석</b><br><br>
-    시간 순서를 유지한 상태에서 과거 데이터를 학습하고 이후 시점 데이터를 평가한 결과입니다.<br>
-    평균 MSE는 <b>{cv_mse:.3f}</b>, 평균 MAE는 <b>{cv_mae:.3f}</b>, 평균 R²는 <b>{cv_r2:.3f}</b>입니다.<br>
-    이는 무작위 분할보다 실제 생육·수확 예측 흐름에 가까운 검증 방식으로, 시계열 기반 예측 안정성을 확인하는 데 활용됩니다.
-    </div>
+<b>Time-Series Cross Validation 해석</b><br><br>
+시간 순서를 유지한 상태에서 과거 데이터를 학습하고 이후 시점 데이터를 평가한 결과입니다.<br>
+평균 MSE는 <b>{cv_mse:.3f}</b>, 평균 MAE는 <b>{cv_mae:.3f}</b>, 평균 R²는 <b>{cv_r2:.3f}</b>입니다.<br>
+이는 무작위 분할보다 실제 생육·수확 예측 흐름에 가까운 검증 방식으로, 시계열 기반 예측 안정성을 확인하는 데 활용됩니다.
+</div>
                 """,
                 unsafe_allow_html=True
             )
@@ -2123,12 +2455,7 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
     except Exception as e:
         st.error(f"CV 실행 오류: {e}")
 
-    render_section_header(
-        "XAI 자동 리포트",
-        "SHAP · Feature Importance · ICE · PDP · ALE 통합 분석",
-        "🧠",
-        accent="purple",
-    )
+    st.subheader("SHAP / Feature Importance / ICE / PDP / ALE — 자동 리포트 포함")
 
     shap_values = None
     shap_df = None
@@ -2166,7 +2493,7 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
                 st.markdown("**SHAP Summary 최종 결과**")
                 st.info(explain_shap_summary(shap_df))
                 st.markdown("**SHAP Summary 상세 설명**")
-                render_insight(explain_shap_summary_detail(shap_df, target_col, model_choice), variant="purple")
+                st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_shap_summary_detail(shap_df, target_col, model_choice)}</div>""", unsafe_allow_html=True)
 
             except Exception as e:
                 st.error(f"SHAP 계산/시각화 오류: {e}")
@@ -2221,7 +2548,11 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
             temporal_df, week_importance, heatmap_df = build_temporal_shap_tables(temporal_shap_values, temporal_features)
 
             if week_importance is not None and not week_importance.empty:
-                fig_ts = fig_temporal_shap_bar(week_importance)
+                fig_ts, ax_ts = plt.subplots(figsize=(6, 4))
+                ax_ts.bar(week_importance["Week"].astype(str), week_importance["TotalMeanAbsSHAP"])
+                ax_ts.set_title("주차별 영향도")
+                ax_ts.set_xlabel("시간 단위: 주(week)")
+                ax_ts.set_ylabel("단위: Mean(|SHAP value|)")
                 display_matplotlib(fig_ts)
                 plt.close(fig_ts)
 
@@ -2233,26 +2564,26 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
 
                 st.markdown(
                     """
-    <div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
-    padding:14px;
-    border-radius:10px;
-    line-height:1.8;
-    font-size:16px">
+<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
+padding:14px;
+border-radius:10px;
+line-height:1.8;
+font-size:16px">
 
-    <b>TotalMeanAbsSHAP 설명</b><br><br>
+<b>TotalMeanAbsSHAP 설명</b><br><br>
 
-    TotalMeanAbsSHAP는 해당 주차의 모든 변수들의 평균 절대 SHAP 값을 합산한 값입니다.<br>
-    즉, 특정 주차의 환경 정보가 전체 예측 결과에 얼마나 강하게 영향을 주었는지를 의미합니다.<br>
-    값이 클수록 해당 시기의 환경조건이 현재 생육 또는 수확 예측에 매우 중요하게 작용했다는 뜻입니다.<br><br>
+TotalMeanAbsSHAP는 해당 주차의 모든 변수들의 평균 절대 SHAP 값을 합산한 값입니다.<br>
+즉, 특정 주차의 환경 정보가 전체 예측 결과에 얼마나 강하게 영향을 주었는지를 의미합니다.<br>
+값이 클수록 해당 시기의 환경조건이 현재 생육 또는 수확 예측에 매우 중요하게 작용했다는 뜻입니다.<br><br>
 
-    <b>AvgSignedSHAP 설명</b><br><br>
+<b>AvgSignedSHAP 설명</b><br><br>
 
-    AvgSignedSHAP는 해당 주차 변수들의 SHAP 방향성 평균입니다.<br>
-    양수이면 평균적으로 예측값을 증가시키는 방향으로 작용했고,<br>
-    음수이면 평균적으로 예측값을 감소시키는 방향으로 작용했음을 의미합니다.<br>
-    즉, 해당 시기의 환경이 생육/수확에 긍정적이었는지 부정적이었는지를 해석할 수 있습니다.
+AvgSignedSHAP는 해당 주차 변수들의 SHAP 방향성 평균입니다.<br>
+양수이면 평균적으로 예측값을 증가시키는 방향으로 작용했고,<br>
+음수이면 평균적으로 예측값을 감소시키는 방향으로 작용했음을 의미합니다.<br>
+즉, 해당 시기의 환경이 생육/수확에 긍정적이었는지 부정적이었는지를 해석할 수 있습니다.
 
-    </div>
+</div>
                     """,
                     unsafe_allow_html=True
                 )
@@ -2263,7 +2594,16 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
 
             st.subheader("🔥 Feature × Week Heatmap")
             if heatmap_df is not None and not heatmap_df.empty:
-                fig_hm = fig_feature_week_heatmap(heatmap_df, target_col)
+                fig_hm, ax_hm = plt.subplots(figsize=(8, 5))
+                im = ax_hm.imshow(heatmap_df, aspect='auto', cmap=heatmap_cmap)
+                ax_hm.set_xticks(range(len(heatmap_df.columns)))
+                ax_hm.set_xticklabels([f"{int(c)}주" for c in heatmap_df.columns])
+                ax_hm.set_yticks(range(len(heatmap_df.index)))
+                ax_hm.set_yticklabels(heatmap_df.index)
+                ax_hm.set_xlabel("시간 단위: 주(week)")
+                ax_hm.set_ylabel("환경/생육 변수")
+                ax_hm.set_title("Feature × Week Heatmap")
+                plt.colorbar(im, label="단위: Mean(|SHAP value|)")
                 display_matplotlib(fig_hm)
                 plt.close(fig_hm)
 
@@ -2328,19 +2668,29 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
                     top_feature = "없음"
                     top_group = "없음"
 
-                render_alert_card(
+                st.info(
                     "단위가 큰 누적일사량이 반복적으로 선택되는 문제를 줄이기 위해 "
                     "표준화 변화량(StdChange), 예측 개선량(PredDelta), PriorityScore를 함께 사용했습니다. "
-                    "또한 동일 제어군만 반복 추천되지 않도록 제어군별 대표 후보를 우선 선발합니다.",
-                    variant="info",
+                    "또한 동일 제어군만 반복 추천되지 않도록 제어군별 대표 후보를 우선 선발합니다."
                 )
 
-                render_kpi_cards([
-                    ("현재 예측값", f"{before_pred:.3f}", "#2563eb"),
-                    ("Counterfactual 예측값", f"{after_pred:.3f}", "#059669"),
-                    ("변화량", f"{delta_pred:+.3f}", "#d97706"),
-                    ("1순위 제어 후보", top_group, "#7c3aed"),
-                ])
+                metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+
+                with metric_col1:
+                    st.metric("현재 예측값", f"{before_pred:.3f}")
+
+                with metric_col2:
+                    st.metric(
+                        "Counterfactual 예측값",
+                        f"{after_pred:.3f}",
+                        delta=f"{delta_pred:.3f}"
+                    )
+
+                with metric_col3:
+                    st.metric("변화량", f"{delta_pred:.3f}")
+
+                with metric_col4:
+                    st.metric("1순위 제어 후보", top_group)
 
                 st.markdown("### 📋 Top-N 환경제어 우선순위")
 
@@ -2374,12 +2724,11 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
                 card_col1, card_col2 = st.columns(2)
 
                 with card_col1:
-                    render_alert_card(
-                        f"<b>1순위 제어군:</b> {top_group}<br><br>"
-                        f"<b>대표 변수:</b> {top_feature}<br><br>"
+                    st.success(
+                        f"**1순위 제어군:** {top_group}\n\n"
+                        f"**대표 변수:** {top_feature}\n\n"
                         f"이 후보는 현재 모델이 {target_col} 예측값을 높일 가능성이 있다고 판단한 "
-                        "우선 검토 대상입니다.",
-                        variant="success",
+                        "우선 검토 대상입니다."
                     )
 
                 with card_col2:
@@ -2390,11 +2739,10 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
                     else:
                         first_rec = "현장 조건과 생육단계를 함께 검토하여 제어 방향을 결정하세요."
 
-                    render_alert_card(
-                        f"<b>권장 제어 방향</b><br><br>{first_rec}<br><br>"
+                    st.warning(
+                        f"**권장 제어 방향**\n\n{first_rec}\n\n"
                         "Counterfactual은 실제 정답 제어값이 아니라, 학습 데이터 범위에서 계산된 "
-                        "가설적 제어 후보입니다.",
-                        variant="warning",
+                        "가설적 제어 후보입니다."
                     )
 
                 st.markdown("### 🔎 선택된 복합 Counterfactual 변화량")
@@ -2424,18 +2772,16 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
                 interpret_col1, interpret_col2 = st.columns(2)
 
                 with interpret_col1:
-                    render_alert_card(
-                        "<b>Change</b>: 현재값과 Counterfactual 값의 원 단위 차이입니다.<br><br>"
-                        "<b>StdChange</b>: 표준편차 기준으로 환산한 변화량입니다. "
-                        "온도·습도·CO₂·일사량처럼 단위가 다른 변수를 공정하게 비교하는 데 사용합니다.",
-                        variant="info",
+                    st.info(
+                        "**Change**: 현재값과 Counterfactual 값의 원 단위 차이입니다.\n\n"
+                        "**StdChange**: 표준편차 기준으로 환산한 변화량입니다. "
+                        "온도·습도·CO₂·일사량처럼 단위가 다른 변수를 공정하게 비교하는 데 사용합니다."
                     )
 
                 with interpret_col2:
-                    render_alert_card(
-                        "<b>PredDelta</b>: 해당 변수 조정 시 예측값이 얼마나 개선되는지 나타냅니다.<br><br>"
-                        "<b>PriorityScore</b>: PredDelta와 표준화 효율을 함께 반영한 환경제어 우선순위 점수입니다.",
-                        variant="info",
+                    st.info(
+                        "**PredDelta**: 해당 변수 조정 시 예측값이 얼마나 개선되는지 나타냅니다.\n\n"
+                        "**PriorityScore**: PredDelta와 표준화 효율을 함께 반영한 환경제어 우선순위 점수입니다."
                     )
 
                 if not priority_df.empty:
@@ -2453,24 +2799,24 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
                         with decision_cols[(idx - 1) % 5]:
                             st.markdown(
                                 f"""
-    <div style="background:linear-gradient(135deg,#ffffff,#eef5ff); border:1px solid #dbeafe; box-shadow:0 6px 16px rgba(15,23,42,0.08); border-radius:16px; padding:14px; min-height:190px; line-height:1.55; word-break:keep-all; overflow-wrap:break-word;">
-    <div style="font-size:13px; color:#64748b; font-weight:700;">{idx}순위 · {group}</div>
-    <div style="font-size:15px; font-weight:800; color:#183b56; margin-top:6px;">{feature}</div>
-    <div style="margin-top:8px; font-size:14px;">방향: <b>{direction}</b></div>
-    <div style="font-size:14px;">예측 개선량: <b>{pred_delta:.3f}</b></div>
-    <div style="margin-top:8px; font-size:13px; color:#334155;">{rec}</div>
-    </div>
-    """,
+<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); border:1px solid #dbeafe; box-shadow:0 6px 16px rgba(15,23,42,0.08); border-radius:16px; padding:14px; min-height:190px; line-height:1.55; word-break:keep-all; overflow-wrap:break-word;">
+<div style="font-size:13px; color:#64748b; font-weight:700;">{idx}순위 · {group}</div>
+<div style="font-size:15px; font-weight:800; color:#183b56; margin-top:6px;">{feature}</div>
+<div style="margin-top:8px; font-size:14px;">방향: <b>{direction}</b></div>
+<div style="font-size:14px;">예측 개선량: <b>{pred_delta:.3f}</b></div>
+<div style="margin-top:8px; font-size:13px; color:#334155;">{rec}</div>
+</div>
+""",
                                 unsafe_allow_html=True
                             )
 
                     st.markdown(
                         """
-    <div style="background:linear-gradient(135deg,#0f766e,#2563eb); color:white; padding:16px; border-radius:16px; box-shadow:0 8px 22px rgba(37,99,235,0.22); line-height:1.7; margin-top:12px;">
-    <b style="color:white;">제어 전략 해석</b><br>
-    누적일사량이 계속 1순위로 보이면 모델이 광환경을 강하게 학습했을 가능성이 있습니다. 개선된 방식에서는 제어군별 대표 후보를 함께 보여주므로, 온도·습도·CO₂·광환경 후보를 조합해 현실적인 제어전략을 수립하는 것이 좋습니다.
-    </div>
-    """,
+<div style="background:linear-gradient(135deg,#0f766e,#2563eb); color:white; padding:16px; border-radius:16px; box-shadow:0 8px 22px rgba(37,99,235,0.22); line-height:1.7; margin-top:12px;">
+<b style="color:white;">제어 전략 해석</b><br>
+누적일사량이 계속 1순위로 보이면 모델이 광환경을 강하게 학습했을 가능성이 있습니다. 개선된 방식에서는 제어군별 대표 후보를 함께 보여주므로, 온도·습도·CO₂·광환경 후보를 조합해 현실적인 제어전략을 수립하는 것이 좋습니다.
+</div>
+""",
                         unsafe_allow_html=True
                     )
 
@@ -2658,6 +3004,11 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
 
         try:
 
+            fig_mix, ax_mix = plt.subplots(figsize=(6, 4))
+
+            # -------------------------------
+            # ICE
+            # -------------------------------
             Xs = X_test.sample(
                 n=min(n_samples, len(X_test)),
                 random_state=42
@@ -2669,15 +3020,26 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
                 50
             )
 
-            ice_curves_y = []
             for _, row in Xs.iterrows():
+
                 Xtmp = pd.DataFrame(
                     np.tile(row.values, (len(xs), 1)),
                     columns=X_test.columns
                 )
-                Xtmp[ice_feature] = xs
-                ice_curves_y.append(safe_predict(model, Xtmp, features))
 
+                Xtmp[ice_feature] = xs
+
+                preds = safe_predict(model, Xtmp, features)
+
+                ax_mix.plot(
+                    xs,
+                    preds,
+                    alpha=0.15
+                )
+
+            # -------------------------------
+            # PDP
+            # -------------------------------
             xvals, yvals, pdp_summary = summarize_pdp(
                 model,
                 X_test,
@@ -2685,14 +3047,19 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
                 grid_resolution=50
             )
 
-            fig_mix = fig_ice_pdp(
-                xs,
-                ice_curves_y,
+            ax_mix.plot(
                 xvals,
                 yvals,
-                pretty_time_text(ice_feature),
-                best_interval=pdp_summary.get("best_interval"),
+                color="red",
+                linewidth=3,
+                label="PDP"
             )
+
+            ax_mix.set_title(f"ICE + PDP: {pretty_time_text(ice_feature)}")
+            ax_mix.set_xlabel(pretty_time_text(ice_feature))
+            ax_mix.set_ylabel("Predicted")
+            ax_mix.legend()
+
             display_matplotlib(fig_mix)
             plt.close(fig_mix)
 
@@ -2752,16 +3119,17 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
         st.markdown("**Centered ALE & 임계구간 탐지**")
         try:
             bin_centers, ale_vals = compute_centered_ale(model, X_test.reset_index(drop=True), ice_feature, bins=ale_bins)
-            ale_summary = summarize_ale_intervals(bin_centers, ale_vals)
-            fig_ale = fig_centered_ale(
-                bin_centers,
-                ale_vals,
-                pretty_time_text(ice_feature),
-                pos_intervals=ale_summary.get("pos_intervals"),
-                neg_intervals=ale_summary.get("neg_intervals"),
-            )
+            fig_ale, ax_ale = plt.subplots(figsize=(5, 3))
+            if len(bin_centers) > 1:
+                ax_ale.plot(bin_centers, ale_vals, marker="o", linestyle="-")
+            else:
+                ax_ale.hlines(ale_vals[0], bin_centers[0] - 0.5, bin_centers[0] + 0.5)
+            ax_ale.set_title(f"Centered ALE: {pretty_time_text(ice_feature)}")
+            ax_ale.set_xlabel(pretty_time_text(ice_feature))
+            ax_ale.set_ylabel("ALE")
             display_matplotlib(fig_ale)
             plt.close(fig_ale)
+            ale_summary = summarize_ale_intervals(bin_centers, ale_vals)
             if ale_summary["pos_intervals"]:
                 st.write("모델이 우호적으로 보는 구간(양의 ALE):")
                 for a, b, mv in ale_summary["pos_intervals"]:
@@ -2809,17 +3177,17 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
 
         st.markdown(
             f"""
-    <div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
-    padding:18px;
-    border-radius:12px;
-    line-height:2.0;
-    font-size:16px;
-    word-break:normal;
-    overflow-wrap:break-word">
+<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
+padding:18px;
+border-radius:12px;
+line-height:2.0;
+font-size:16px;
+word-break:normal;
+overflow-wrap:break-word">
 
-    {comprehensive_report}
+{comprehensive_report}
 
-    </div>
+</div>
             """,
             unsafe_allow_html=True
         )
@@ -2828,9 +3196,5 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
         st.warning(f"종합 리포트 생성 오류: {e}")
 
     st.success("통합 XAI 분석이 완료되었습니다.")
-
-
-# streamlit run app.py → __main__ / import app → "app" (UI는 main에서만 1회 실행)
-if __name__ == "__main__" and os.environ.get("PAI_APP_MODE") != "mobile":
-    from dims_ui import run_desktop_ui
-    run_desktop_ui(_render_advanced_xai_analysis)
+else:
+    st.info("환경센서 CSV와 수확/생육 CSV를 업로드하면 분석을 시작합니다.")

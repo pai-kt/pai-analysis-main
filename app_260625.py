@@ -36,7 +36,7 @@ plt.rcParams["axes.unicode_minus"] = False
 plt.rcParams['axes.unicode_minus'] = False
 
 if os.environ.get("PAI_APP_MODE") != "mobile":
-    st.set_page_config(page_title="A-DIMS · 토마토 대시보드", layout="wide")
+    st.set_page_config(layout="wide")
 
 # 그래프·표 기본 설정 (고정)
 graph_theme = "기본"
@@ -45,16 +45,605 @@ line_width_scale = 1.2
 heatmap_cmap = "coolwarm"
 plotly_template = "plotly_white"
 
-# A-DIMS UI 스타일은 dims_ui.py ADIMS_CSS에서 주입됩니다 (모바일 모드 제외).
-if os.environ.get("PAI_APP_MODE") == "mobile":
-    st.markdown(
-        """
-        <style>
-        .block-container { max-width: 100% !important; }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+st.markdown(
+    """
+    <style>
+    :root {
+        --c-primary: #2563eb;
+        --c-teal: #0d9488;
+        --c-purple: #7c3aed;
+        --c-emerald: #059669;
+        --c-amber: #d97706;
+        --c-rose: #e11d48;
+        --c-text: #1e293b;
+        --c-text-sub: #64748b;
+        --c-text-muted: #94a3b8;
+        --c-bg: #f4f8fc;
+        --c-surface: #ffffff;
+        --c-border: #e2e8f0;
+        --radius-lg: 18px;
+        --shadow-sm: 0 4px 14px rgba(15, 23, 42, 0.06);
+        --shadow-md: 0 10px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    .stApp {
+        background: linear-gradient(160deg, #f8fafc 0%, #eff6ff 45%, #f0fdf4 100%) !important;
+        color: var(--c-text) !important;
+    }
+
+    header[data-testid="stHeader"] {
+        background: rgba(255,255,255,0.85) !important;
+        backdrop-filter: blur(8px);
+    }
+
+    .block-container {
+        padding-top: 2.5rem !important;
+        padding-bottom: 1rem;
+        padding-left: 1.2rem;
+        padding-right: 1.2rem;
+        max-width: 1400px;
+    }
+
+    section[data-testid="stMain"] {
+        color: var(--c-text);
+    }
+    section[data-testid="stMain"] h1,
+    section[data-testid="stMain"] h2,
+    section[data-testid="stMain"] h3 {
+        color: #0f172a !important;
+    }
+    section[data-testid="stMain"] [data-testid="stWidgetLabel"] p,
+    section[data-testid="stMain"] [data-testid="stWidgetLabel"] label {
+        color: #334155 !important;
+        font-weight: 600 !important;
+        opacity: 1 !important;
+    }
+    [data-testid="stWidgetLabel"] {
+        overflow: visible !important;
+        white-space: normal !important;
+    }
+
+    /* Hero */
+    .xai-hero {
+        background: linear-gradient(135deg, #0f766e 0%, #2563eb 52%, #7c3aed 100%);
+        border-radius: 24px;
+        padding: 28px 28px 24px;
+        color: #ffffff !important;
+        box-shadow: 0 20px 40px rgba(37, 99, 235, 0.28);
+        margin-bottom: 8px;
+        position: relative;
+        overflow: hidden;
+    }
+    .xai-hero::before {
+        content: "";
+        position: absolute;
+        top: -40%;
+        right: -10%;
+        width: 320px;
+        height: 320px;
+        background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%);
+        pointer-events: none;
+    }
+    .xai-hero-kicker {
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        font-weight: 700;
+        color: #a5f3fc !important;
+        text-transform: uppercase;
+    }
+    .xai-hero-title {
+        margin: 12px 0 10px;
+        font-size: 1.85rem;
+        font-weight: 900;
+        line-height: 1.25;
+        color: #ffffff !important;
+    }
+    .xai-hero-desc {
+        margin: 0;
+        font-size: 15px;
+        line-height: 1.7;
+        color: #e0f2fe !important;
+    }
+    .xai-pill-wrap {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 18px;
+    }
+    .xai-pill {
+        flex: 1;
+        min-width: 150px;
+        background: rgba(255,255,255,0.14);
+        border: 1px solid rgba(255,255,255,0.22);
+        border-radius: 14px;
+        padding: 12px 14px;
+        backdrop-filter: blur(8px);
+    }
+    .xai-pill .label { font-size: 12px; color: #bae6fd !important; font-weight: 600; }
+    .xai-pill .value { font-size: 22px; font-weight: 900; margin-top: 4px; }
+    .xai-pill-blue .value { color: #bfdbfe !important; }
+    .xai-pill-teal .value { color: #99f6e4 !important; }
+    .xai-pill-purple .value { color: #ddd6fe !important; }
+
+    div[data-testid="column"]:has(.hero-crop-wrap-marker) {
+        background: rgba(255,255,255,0.95);
+        border-radius: 16px;
+        padding: 8px 10px 4px;
+        border: 1px solid rgba(255,255,255,0.7);
+        box-shadow: var(--shadow-sm);
+        align-self: flex-start;
+    }
+    div[data-testid="column"]:has(.hero-crop-wrap-marker) [data-testid="stWidgetLabel"] p {
+        color: var(--c-teal) !important;
+        font-weight: 700 !important;
+    }
+
+    /* 작물 선택 — 페이지 최상단 */
+    div[data-testid="stVerticalBlock"]:has(.crop-top-bar-marker) {
+        background: #ffffff;
+        border: 1px solid #bfdbfe;
+        border-radius: 16px;
+        padding: 14px 18px 6px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow-sm);
+    }
+    div[data-testid="stVerticalBlock"]:has(.crop-top-bar-marker) [data-testid="stWidgetLabel"] p {
+        color: #0f766e !important;
+        font-weight: 800 !important;
+        font-size: 1rem !important;
+    }
+
+    /* xai-table for reports */
+    .xai-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+        background: white;
+        border-radius: 14px;
+        overflow: hidden;
+    }
+    .xai-table th {
+        background: #f1f5f9;
+        color: #1e40af !important;
+        text-align: left;
+        padding: 10px;
+        border-bottom: 1px solid #cbd5e1;
+    }
+    .xai-table td {
+        padding: 10px;
+        border-bottom: 1px solid #e5e7eb;
+        color: #334155 !important;
+    }
+    .xai-card {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 20px 22px;
+        box-shadow: var(--shadow-md);
+        border: 1px solid var(--c-border);
+        margin: 10px 0 18px;
+    }
+
+    /* Section headers */
+    .xai-section-header {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin: 32px 0 16px;
+        padding: 14px 16px;
+        background: var(--c-surface);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--c-border);
+        box-shadow: var(--shadow-sm);
+    }
+    .xai-section-icon {
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        flex-shrink: 0;
+    }
+    .xai-accent-blue .xai-section-icon { background: linear-gradient(135deg, #dbeafe, #eff6ff); border: 1px solid #bfdbfe; }
+    .xai-accent-teal .xai-section-icon { background: linear-gradient(135deg, #ccfbf1, #f0fdfa); border: 1px solid #99f6e4; }
+    .xai-accent-purple .xai-section-icon { background: linear-gradient(135deg, #ede9fe, #f5f3ff); border: 1px solid #c4b5fd; }
+    .xai-accent-green .xai-section-icon { background: linear-gradient(135deg, #dcfce7, #f0fdf4); border: 1px solid #86efac; }
+    .xai-accent-amber .xai-section-icon { background: linear-gradient(135deg, #fef3c7, #fffbeb); border: 1px solid #fcd34d; }
+    .xai-accent-rose .xai-section-icon { background: linear-gradient(135deg, #ffe4e6, #fff1f2); border: 1px solid #fda4af; }
+    .xai-section-title {
+        margin: 0 !important;
+        font-size: 1.2rem !important;
+        font-weight: 800 !important;
+        letter-spacing: -0.02em;
+    }
+    .xai-accent-blue .xai-section-title { color: #1e40af !important; }
+    .xai-accent-teal .xai-section-title { color: #0f766e !important; }
+    .xai-accent-purple .xai-section-title { color: #6d28d9 !important; }
+    .xai-accent-green .xai-section-title { color: #047857 !important; }
+    .xai-accent-amber .xai-section-title { color: #b45309 !important; }
+    .xai-accent-rose .xai-section-title { color: #be123c !important; }
+    .xai-section-sub {
+        margin: 4px 0 0 !important;
+        font-size: 0.9rem !important;
+        color: var(--c-text-sub) !important;
+        font-weight: 500 !important;
+    }
+
+    /* Step badges */
+    .xai-step-badge {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        padding: 5px 12px;
+        border-radius: 999px;
+        margin-bottom: 8px;
+    }
+    .step-blue { background: #dbeafe; color: #1d4ed8 !important; border: 1px solid #93c5fd; }
+    .step-teal { background: #ccfbf1; color: #0f766e !important; border: 1px solid #5eead4; }
+    .step-purple { background: #ede9fe; color: #6d28d9 !important; border: 1px solid #c4b5fd; }
+    .step-amber { background: #fef3c7; color: #b45309 !important; border: 1px solid #fcd34d; }
+
+    /* Upload labels */
+    .upload-label {
+        font-size: 0.95rem;
+        font-weight: 700;
+        margin: 0 0 8px;
+        padding: 0;
+    }
+    .upload-label-sensor { color: #0369a1 !important; }
+    .upload-label-yield { color: #047857 !important; }
+
+    /* Cards & containers */
+    div[data-testid="stVerticalBlockBorderWrapper"] {
+        background: var(--c-surface) !important;
+        border-color: #dbeafe !important;
+        border-radius: var(--radius-lg) !important;
+        box-shadow: var(--shadow-sm) !important;
+        color: #1e293b !important;
+    }
+    div[data-testid="stVerticalBlockBorderWrapper"] *:not(svg):not(path):not(button):not(.xai-hero):not(.xai-hero *) {
+        color: #1e293b;
+    }
+    .xai-note {
+        border-left: 5px solid var(--c-primary);
+        background: linear-gradient(135deg, #eff6ff, #f8fafc);
+        padding: 14px 16px;
+        border-radius: 14px;
+        line-height: 1.7;
+        margin: 10px 0;
+        color: #1e3a8a !important;
+    }
+    .xai-note b { color: #1d4ed8 !important; }
+    .pretty-box, .xai-subcard {
+        background: var(--c-surface);
+        border-radius: var(--radius-lg);
+        padding: 16px;
+        border: 1px solid var(--c-border);
+        box-shadow: var(--shadow-sm);
+        color: var(--c-text) !important;
+    }
+
+    /* Widgets */
+    div[data-testid="stFileUploader"] section {
+        background: #f8fafc !important;
+        border: 1px dashed #94a3b8 !important;
+        border-radius: 14px !important;
+        transition: border-color 0.2s, background 0.2s;
+    }
+    div[data-testid="stFileUploader"] section:hover {
+        border-color: var(--c-primary) !important;
+        background: #eff6ff !important;
+    }
+    div[data-testid="stFileUploader"] section,
+    div[data-testid="stFileUploader"] section *:not(button):not(button *) {
+        color: var(--c-text) !important;
+        opacity: 1 !important;
+    }
+    div[data-testid="stFileUploader"] ul,
+    div[data-testid="stFileUploader"] ul * {
+        color: #334155 !important;
+    }
+    /* File uploader Browse 버튼 */
+    div[data-testid="stFileUploader"] button,
+    div[data-testid="stFileUploader"] .stButton > button,
+    div[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"],
+    div[data-testid="stFileUploader"] [data-baseweb="button"] {
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid #94a3b8 !important;
+        border-radius: 10px !important;
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1) !important;
+        font-weight: 600 !important;
+    }
+    div[data-testid="stFileUploader"] button *,
+    div[data-testid="stFileUploader"] .stButton > button *,
+    div[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"] *,
+    div[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"] p,
+    div[data-testid="stFileUploader"] [data-baseweb="button"] *,
+    div[data-testid="stFileUploader"] [data-baseweb="button"] p {
+        color: #1e293b !important;
+        -webkit-text-fill-color: #1e293b !important;
+    }
+    div[data-testid="stFileUploader"] button:hover,
+    div[data-testid="stFileUploader"] .stButton > button:hover,
+    div[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"]:hover,
+    div[data-testid="stFileUploader"] [data-baseweb="button"]:hover {
+        background: #eff6ff !important;
+        background-color: #eff6ff !important;
+        border-color: #2563eb !important;
+        color: #1e40af !important;
+    }
+    div[data-testid="stFileUploader"] button:hover *,
+    div[data-testid="stFileUploader"] .stButton > button:hover *,
+    div[data-testid="stFileUploader"] [data-baseweb="button"]:hover * {
+        color: #1e40af !important;
+        -webkit-text-fill-color: #1e40af !important;
+    }
+    /* Widgets — selectbox / input 글자색 강제 (흰색 텍스트 방지) */
+    section[data-testid="stMain"] [data-testid="stSelectbox"] div[data-baseweb="select"] > div,
+    section[data-testid="stMain"] [data-testid="stSelectbox"] div[data-baseweb="select"] span,
+    section[data-testid="stMain"] [data-testid="stSelectbox"] div[data-baseweb="select"] div,
+    section[data-testid="stMain"] [data-testid="stMultiSelect"] div[data-baseweb="select"] span,
+    section[data-testid="stMain"] [data-testid="stMultiSelect"] div[data-baseweb="tag"] span,
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-baseweb="select"] span,
+    div[data-testid="stVerticalBlockBorderWrapper"] div[data-baseweb="select"] div {
+        color: #1e293b !important;
+        -webkit-text-fill-color: #1e293b !important;
+        opacity: 1 !important;
+    }
+    div[data-baseweb="select"] > div {
+        border-radius: 12px !important;
+        border-color: #cbd5e1 !important;
+        background: #ffffff !important;
+        color: #1e293b !important;
+    }
+    div[data-baseweb="select"] span,
+    div[data-baseweb="select"] div[aria-selected="true"] {
+        color: #1e293b !important;
+        -webkit-text-fill-color: #1e293b !important;
+    }
+    div[data-baseweb="popover"] li,
+    div[data-baseweb="popover"] ul,
+    div[data-baseweb="popover"] [role="option"],
+    div[data-baseweb="menu"] li {
+        color: #1e293b !important;
+        background-color: #ffffff !important;
+    }
+    div[data-baseweb="popover"] li:hover,
+    div[data-baseweb="menu"] li:hover {
+        background-color: #eff6ff !important;
+        color: #1e293b !important;
+    }
+    [data-testid="stNumberInput"] input,
+    [data-testid="stTextInput"] input,
+    [data-testid="stTextArea"] textarea {
+        color: #1e293b !important;
+        -webkit-text-fill-color: #1e293b !important;
+        background: #ffffff !important;
+    }
+    div[data-testid="stSlider"] [data-testid="stMarkdown"] p,
+    div[data-testid="stSlider"] label {
+        color: #334155 !important;
+    }
+
+    div[data-testid="stDataFrame"] {
+        border-radius: 14px !important;
+        border: 1px solid #dbeafe !important;
+        box-shadow: var(--shadow-sm) !important;
+        font-size: 12px !important;
+        background: #ffffff !important;
+    }
+    div[data-testid="stDataFrame"] [data-testid="stDataFrameResizable"],
+    div[data-testid="stDataFrame"] [data-testid="glideDataEditor"],
+    div[data-testid="stDataFrame"] canvas {
+        background: #ffffff !important;
+    }
+    div[data-testid="stDataFrame"] .gdg-theme-dark,
+    div[data-testid="stDataFrame"] .gdg-theme-light {
+        --gdg-bg-cell: #ffffff !important;
+        --gdg-bg-header: #f1f5f9 !important;
+        --gdg-text-dark: #1e293b !important;
+        --gdg-text-medium: #334155 !important;
+        --gdg-border-color: #e2e8f0 !important;
+    }
+
+    /* Metrics — 색상별 */
+    [data-testid="metric-container"] {
+        background: #ffffff !important;
+        border: 1px solid var(--c-border) !important;
+        padding: 14px 16px !important;
+        border-radius: 16px !important;
+        box-shadow: var(--shadow-sm) !important;
+    }
+    [data-testid="stMetricLabel"] { color: #64748b !important; font-weight: 600 !important; }
+    [data-testid="stMetricValue"] {
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+        font-weight: 800 !important;
+    }
+    [data-testid="stMetricDelta"],
+    [data-testid="stMetricDelta"] svg text {
+        color: #059669 !important;
+        fill: #059669 !important;
+    }
+    [data-testid="stMetricDelta"][data-testid-negative="true"],
+    [data-testid="stMetricDelta"][data-testid-negative="true"] svg text {
+        color: #dc2626 !important;
+        fill: #dc2626 !important;
+    }
+
+    /* Tabs */
+    [data-testid="stTabs"] button {
+        color: var(--c-text-sub) !important;
+        font-weight: 600 !important;
+    }
+    [data-testid="stTabs"] button[aria-selected="true"] {
+        color: var(--c-primary) !important;
+        border-bottom-color: var(--c-primary) !important;
+    }
+
+    div[data-testid="stSlider"] {
+        padding: 10px 14px;
+        background: #f8fafc;
+        border-radius: 14px;
+        border: 1px solid var(--c-border);
+    }
+
+    .stButton > button {
+        border-radius: 12px;
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: #ffffff !important;
+        border: none;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    /* Sidebar */
+    section[data-testid="stSidebar"] {
+        background: linear-gradient(180deg, #0f2942, #1e4f73);
+    }
+    section[data-testid="stSidebar"] [data-testid="stMarkdown"] p {
+        color: #e2e8f0 !important;
+    }
+
+    /* 본문 소제목 · 강조 텍스트 */
+    section[data-testid="stMain"] [data-testid="stMarkdown"] h3:not(.xai-section-title) {
+        color: #4338ca !important;
+        font-weight: 800 !important;
+        border-left: 4px solid #818cf8;
+        padding-left: 12px;
+        margin-top: 1.2rem !important;
+    }
+    section[data-testid="stMain"] [data-testid="stMarkdown"] h2 {
+        color: #0f766e !important;
+        font-weight: 900 !important;
+        letter-spacing: -0.02em;
+    }
+    section[data-testid="stMain"] [data-testid="stMarkdown"] p strong {
+        color: #1d4ed8 !important;
+        font-weight: 700 !important;
+    }
+
+    /* 인사이트 카드 */
+    .xai-insight {
+        background: linear-gradient(135deg, #ffffff, #eef5ff);
+        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+        padding: 14px 16px;
+        border-radius: 14px;
+        line-height: 1.8;
+        font-size: 15px;
+        margin: 10px 0 16px;
+        color: #334155 !important;
+        border-left: 5px solid var(--c-primary);
+    }
+    .xai-insight-teal { background: linear-gradient(135deg, #ffffff, #ecfdf5); border-left-color: var(--c-teal); }
+    .xai-insight-purple { background: linear-gradient(135deg, #ffffff, #f5f3ff); border-left-color: var(--c-purple); }
+    .xai-insight-amber { background: linear-gradient(135deg, #ffffff, #fffbeb); border-left-color: var(--c-amber); }
+    .xai-insight-rose { background: linear-gradient(135deg, #ffffff, #fff1f2); border-left-color: var(--c-rose); }
+    .xai-insight b { color: #1e40af !important; }
+
+    /* KPI 카드 공통 */
+    .xai-kpi-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        padding: 14px 16px;
+        box-shadow: var(--shadow-sm);
+    }
+    .xai-kpi-label { font-size: 13px; color: #64748b; font-weight: 600; }
+    .xai-kpi-value { font-size: 26px; font-weight: 900; margin-top: 4px; }
+
+    /* 알림 · Expander */
+    [data-testid="stAlert"] {
+        border-radius: 14px !important;
+        opacity: 1 !important;
+    }
+    [data-testid="stAlert"] [data-testid="stMarkdownContainer"],
+    [data-testid="stAlert"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stAlert"] [data-testid="stMarkdown"] p,
+    [data-testid="stAlert"] p,
+    [data-testid="stAlert"] div[data-testid="stMarkdownContainer"] *:not(svg):not(path) {
+        color: #1e293b !important;
+        -webkit-text-fill-color: #1e293b !important;
+        opacity: 1 !important;
+    }
+    [data-testid="stAlert"] strong,
+    [data-testid="stAlert"] b {
+        color: #0f172a !important;
+        font-weight: 700 !important;
+    }
+
+    /* 커스텀 알림 카드 (success / warning / info) */
+    .xai-alert-card {
+        border-radius: 14px;
+        padding: 16px 18px;
+        line-height: 1.8;
+        font-size: 15px;
+        margin: 4px 0;
+        box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+    }
+    .xai-alert-card *:not(svg):not(path) {
+        color: inherit !important;
+        -webkit-text-fill-color: inherit !important;
+        opacity: 1 !important;
+    }
+    .xai-alert-card b, .xai-alert-card strong {
+        font-weight: 800 !important;
+    }
+    .xai-alert-success { background: #ecfdf5; border: 1px solid #86efac; color: #14532d !important; }
+    .xai-alert-warning { background: #fffbeb; border: 1px solid #fcd34d; color: #92400e !important; }
+    .xai-alert-info    { background: #eff6ff; border: 1px solid #93c5fd; color: #1e3a8a !important; }
+
+    /* 그라데이션 설명 박스 — 밝은 배경은 진한 글자 강제 */
+    section[data-testid="stMain"] div[style*="background:linear-gradient(135deg,#ffffff"],
+    section[data-testid="stMain"] div[style*="background:linear-gradient(135deg, #ffffff"] {
+        color: #334155 !important;
+    }
+    section[data-testid="stMain"] div[style*="background:linear-gradient(135deg,#ffffff"] *:not(b):not(strong),
+    section[data-testid="stMain"] div[style*="background:linear-gradient(135deg, #ffffff"] *:not(b):not(strong) {
+        color: #334155 !important;
+        -webkit-text-fill-color: #334155 !important;
+    }
+    section[data-testid="stMain"] div[style*="background:linear-gradient(135deg,#ffffff"] b,
+    section[data-testid="stMain"] div[style*="background:linear-gradient(135deg,#ffffff"] strong,
+    section[data-testid="stMain"] div[style*="background:linear-gradient(135deg, #ffffff"] b,
+    section[data-testid="stMain"] div[style*="background:linear-gradient(135deg, #ffffff"] strong {
+        color: #0f172a !important;
+        -webkit-text-fill-color: #0f172a !important;
+    }
+    [data-testid="stExpander"] {
+        background: #ffffff !important;
+        border: 1px solid #e2e8f0 !important;
+        border-radius: 14px !important;
+        box-shadow: var(--shadow-sm) !important;
+    }
+    [data-testid="stExpander"] summary {
+        color: #1e40af !important;
+        font-weight: 700 !important;
+    }
+
+    /* Multiselect 태그 */
+    span[data-baseweb="tag"] {
+        background: #dbeafe !important;
+        color: #1e40af !important;
+        border-radius: 8px !important;
+    }
+
+    /* Checkbox */
+    [data-testid="stCheckbox"] label span,
+    [data-testid="stCheckbox"] label p {
+        color: #334155 !important;
+        font-weight: 600 !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
 
 
 def render_crop_selector(crop_options):
@@ -426,9 +1015,6 @@ def infer_controllable_features(feature_names):
     selected = []
     for f in feature_names:
         low = str(f).lower()
-        fname = str(f)
-        if "내부" in fname and ("일사" in fname or "광" in fname):
-            continue
         if any(k.lower() in low for k in keywords):
             selected.append(f)
     return selected
@@ -439,28 +1025,16 @@ def build_window_feature_name(week, suffix):
 
 
 def pick_column_index(columns, candidates, fallback=0):
-    from column_mapping import pick_column_index as _pick
-    return _pick(columns, candidates, fallback)
-
-
-def is_external_cumulative_solar_column(col) -> bool:
-    from column_mapping import is_external_cumulative_solar_column as _is
-    return _is(col)
-
-
-def list_external_cumulative_solar_columns(columns):
-    from column_mapping import list_external_cumulative_solar_columns as _list
-    return _list(columns)
-
-
-def pick_external_cumulative_solar_index(columns, fallback=None):
-    from column_mapping import pick_external_cumulative_solar_index as _pick
-    return _pick(columns, fallback)
-
-
-def pick_external_cumulative_solar_column(columns):
-    from column_mapping import pick_external_cumulative_solar_column as _pick
-    return _pick(columns)
+    """컬럼명 후보 목록에서 가장 먼저 매칭되는 인덱스를 반환합니다."""
+    cols = list(columns)
+    for name in candidates:
+        if name in cols:
+            return cols.index(name)
+    for name in candidates:
+        for i, col in enumerate(cols):
+            if name in str(col):
+                return i
+    return fallback if fallback < len(cols) else 0
 
 
 def aggregate_fruit_level_yield(yield_df, date_col):
@@ -1589,13 +2163,7 @@ def compute_rolling_summary(sensor_df, yield_df, date_col_sensor, date_col_yield
 
         results.append(result_row)
 
-    out = pd.DataFrame(results)
-    if out.empty or "조사일자" not in out.columns:
-        base_cols = ["조사일자", "수확수", "착과수", temp_day_col_name, temp_night_col_name,
-                     hum_day_col_name, hum_night_col_name, co2_day_col_name, co2_night_col_name, solar_col_name]
-        base_cols += [gf for gf in growth_cols]
-        return pd.DataFrame(columns=base_cols)
-    return out.sort_values("조사일자").reset_index(drop=True)
+    return pd.DataFrame(results).sort_values("조사일자").reset_index(drop=True)
 
 
 
@@ -1811,164 +2379,499 @@ def generate_comprehensive_report(
 
 
 # -------------------------------------------------------------
-# UI — A-DIMS 4탭 (HTML v0.04) + 상세 XAI
+# UI
 # -------------------------------------------------------------
-def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, sensor_df=None, yield_df=None):
-    """예측 탭 expander — 기존 XAI·모델 분석 파이프라인."""
-    model_options = ["RandomForest", "GradientBoosting", "XGBoost", "LGBM", "GaussianNB"]
-    mc1, mc2 = st.columns(2)
-    with mc1:
-        model_choice = st.selectbox("모델 선택", model_options, key="xai_model")
-    with mc2:
-        target_col = st.selectbox("예측 대상", ["수확수", "착과수"] + growth_features, key="xai_target")
+def _run_desktop_ui():
+    crop_name = render_crop_selector(["토마토", "오이"])
+    render_page_hero(crop_name)
 
-    features = [col for col in df.columns if col not in ["조사일자", "수확수", "착과수"] + growth_features]
-    X = df[features].copy().fillna(df[features].mean(numeric_only=True))
-    y = df[target_col].copy()
-    valid_mask = y.notna()
-    X = X.loc[valid_mask].copy()
-    y = y.loc[valid_mask].copy()
-    if len(X) < 5:
-        st.warning("XAI 분석을 위한 데이터가 부족합니다.")
-        return
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = make_model(model_choice)
-    model.fit(X_train, y_train)
-    y_pred = safe_predict(model, X_test, features)
-    metrics = compute_metrics(y_test, y_pred)
-
-    st.markdown(f"**모델 평가** ({selected_week}주 · {target_col})")
-    render_kpi_cards([
-        ("MSE", f"{metrics['MSE']:.3f}", "#4E79A7"),
-        ("MAE", f"{metrics['MAE']:.3f}", "#4F9D5B"),
-        ("R²", f"{metrics['R2']:.3f}", "#D99220"),
-    ])
-
-    _run_legacy_xai_body(
-        df=df, week_dfs=week_dfs, selected_week=selected_week,
-        growth_features=growth_features, model_choice=model_choice,
-        target_col=target_col, features=features, model=model,
-        X_train=X_train, X_test=X_test, metrics=metrics,
+    render_section_header(
+        "데이터 업로드",
+        "환경센서 CSV와 생육·수확 CSV를 업로드하면 분석이 시작됩니다.",
+        "📁",
+        accent="blue",
     )
+    with st.container(border=True):
+        upload_col1, upload_col2 = st.columns(2)
+        with upload_col1:
+            st.markdown('<p class="upload-label upload-label-sensor">🌡️ 환경센서 데이터 (CSV)</p>', unsafe_allow_html=True)
+            sensor_file = st.file_uploader(
+                "환경센서 데이터",
+                type=["csv"],
+                label_visibility="collapsed",
+                key="sensor_upload",
+            )
+        with upload_col2:
+            st.markdown('<p class="upload-label upload-label-yield">🌱 수확/생육 데이터 (CSV)</p>', unsafe_allow_html=True)
+            yield_file = st.file_uploader(
+                "수확/생육 데이터",
+                type=["csv"],
+                label_visibility="collapsed",
+                key="yield_upload",
+            )
 
+    if sensor_file and yield_file:
+        sensor_df = pd.read_csv(sensor_file)
+        yield_df = pd.read_csv(yield_file)
 
-def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_choice,
-                         target_col, features, model, X_train, X_test, metrics):
-    """기존 XAI 분석 본문 (SHAP · Counterfactual · ICE · ALE · 리포트)."""
-    crop_name = st.session_state.get("dims_crop", "토마토")
-    _ = crop_name  # legacy compat
+        render_section_header(
+            "데이터 미리보기",
+            f"센서 {len(sensor_df):,}행 · 생육 {len(yield_df):,}행",
+            "👀",
+            accent="teal",
+        )
+        preview_tab1, preview_tab2 = st.tabs(["🌡️ 환경센서", "🌱 수확/생육"])
+        with preview_tab1:
+            st.dataframe(sensor_df.head(), use_container_width=True, hide_index=True)
+        with preview_tab2:
+            st.dataframe(yield_df.head(), use_container_width=True, hide_index=True)
 
-    # 1~7주 모델 성능 비교
-    # -------------------------------------------------------------
-    render_section_header("1~7주 모델 성능 비교", "주차별 예측 성능 변화 추이", "📈", accent="teal")
+        yield_df = aggregate_fruit_level_yield(yield_df, "조사일자" if "조사일자" in yield_df.columns else yield_df.columns[0])
 
-    weekly_metrics = []
+        render_section_header(
+            "컬럼 매핑",
+            "자동 추천된 컬럼을 확인하고 필요 시 수정하세요.",
+            "🔗",
+            accent="purple",
+        )
+        render_step_badge(1, "환경 센서")
+        with st.container(border=True):
+            c1, c2, c3, c4, c5 = st.columns(5)
+            with c1:
+                date_col_sensor = st.selectbox(
+                    "날짜시간",
+                    sensor_df.columns,
+                    index=pick_column_index(sensor_df.columns, ["측정시간", "측정 일자", "날짜시간", "일시", "날짜", "Date", "datetime"]),
+                )
+            with c2:
+                temp_col = st.selectbox(
+                    "온도",
+                    sensor_df.columns,
+                    index=pick_column_index(sensor_df.columns, ["온도_내부", "내부온도", "온도"]),
+                )
+            with c3:
+                hum_col = st.selectbox(
+                    "습도",
+                    sensor_df.columns,
+                    index=pick_column_index(sensor_df.columns, ["상대습도_내부", "습도_내부", "습도"]),
+                )
+            with c4:
+                co2_col = st.selectbox(
+                    "CO₂",
+                    sensor_df.columns,
+                    index=pick_column_index(sensor_df.columns, ["잔존CO2", "CO2", "CO₂", "co2"]),
+                )
+            with c5:
+                solar_col = st.selectbox(
+                    "일사량",
+                    sensor_df.columns,
+                    index=pick_column_index(sensor_df.columns, ["누적일사량_외부", "일사량_외부", "일사량", "누적일사량"]),
+                )
 
-    try:
+        render_step_badge(2, "수확/생육")
+        with st.container(border=True):
+            c6, c7, c8 = st.columns(3)
+            with c6:
+                date_col_yield = st.selectbox(
+                    "조사일자",
+                    yield_df.columns,
+                    index=pick_column_index(yield_df.columns, ["조사일자", "날짜", "Date", "date"]),
+                )
+            with c7:
+                harvest_count_col = st.selectbox(
+                    "수확수",
+                    yield_df.columns,
+                    index=pick_column_index(yield_df.columns, ["화방별수확수", "수확수", "수확과수"]),
+                )
+            with c8:
+                harvest_weight_col = st.selectbox(
+                    "착과수",
+                    yield_df.columns,
+                    index=pick_column_index(yield_df.columns, ["화방별착과수", "착과수", "수확과중"]),
+                )
 
-        for wk in range(1, 8):
+        render_step_badge(3, "추가 생육")
+        with st.container(border=True):
+            if crop_name == "토마토":
+                growth_features = ["초장", "생장길이", "엽수", "엽장", "엽폭", "줄기굵기", "화방높이"]
+            else:
+                growth_features = ["초장", "엽수", "엽장", "엽폭", "줄기굵기", "화방높이"]
 
-            wk_df = week_dfs[wk].copy()
+            growth_cols = {}
+            for i in range(0, len(growth_features), 3):
+                cols = st.columns(3)
+                for j, gf in enumerate(growth_features[i:i + 3]):
+                    with cols[j]:
+                        options = [None] + yield_df.columns.tolist()
+                        default_idx = yield_df.columns.get_loc(gf) + 1 if gf in yield_df.columns else 0
+                        growth_cols[gf] = st.selectbox(gf, options, index=default_idx, key=f"growth_{gf}")
 
-            wk_features = [
-                c for c in wk_df.columns
-                if c not in ["조사일자", "수확수", "착과수"] + growth_features
+        # 날짜 처리
+        sensor_df[date_col_sensor] = pd.to_datetime(sensor_df[date_col_sensor], errors='coerce')
+        yield_df[date_col_yield] = pd.to_datetime(yield_df[date_col_yield], errors='coerce')
+        sensor_df = sensor_df.dropna(subset=[date_col_sensor]).copy()
+        yield_df = yield_df.dropna(subset=[date_col_yield]).copy()
+        sensor_df["date"] = sensor_df[date_col_sensor].dt.date
+        sensor_df["hour"] = sensor_df[date_col_sensor].dt.hour
+        sensor_df["time"] = sensor_df[date_col_sensor].dt.time
+
+        # 수치형 변환
+        for col in [temp_col, hum_col, co2_col, solar_col]:
+            sensor_df[col] = pd.to_numeric(sensor_df[col], errors='coerce')
+        date_cols = {date_col_yield, date_col_sensor}
+        for col in [harvest_count_col, harvest_weight_col] + [c for c in growth_cols.values() if c is not None]:
+            if col and col in yield_df.columns and col not in date_cols:
+                yield_df[col] = pd.to_numeric(yield_df[col], errors='coerce')
+
+        if "weeks" not in st.session_state:
+            st.session_state.weeks = 7
+
+        def update_weeks_1():
+            st.session_state.weeks = st.session_state.weeks_slider_1
+
+        render_step_badge(4, "롤링 평균")
+        with st.container(border=True):
+            weeks1 = st.slider(
+                "평균 계산 기간 (주 단위)",
+                1, 7, st.session_state.weeks,
+                key="weeks_slider_1",
+                on_change=update_weeks_1,
+                help="조사일 기준 과거 N주간 센서 데이터의 주간/야간 평균을 계산합니다.",
+            )
+        selected_week = st.session_state.weeks
+
+        # 선택 주차 데이터 + 전체 1~7주 데이터 생성
+        week_dfs = {}
+        for week in range(1, 8):
+            week_dfs[week] = compute_rolling_summary(
+                sensor_df=sensor_df,
+                yield_df=yield_df,
+                date_col_sensor=date_col_sensor,
+                date_col_yield=date_col_yield,
+                temp_col=temp_col,
+                hum_col=hum_col,
+                co2_col=co2_col,
+                solar_col=solar_col,
+                harvest_count_col=harvest_count_col,
+                harvest_weight_col=harvest_weight_col,
+                growth_cols=growth_cols,
+                week=week,
+            )
+
+        df = week_dfs[selected_week].copy()
+
+        env_feature_cols = [
+            build_window_feature_name(selected_week, suffix)
+            for suffix in [
+                "평균주간온도(08~18시)", "평균야간온도(19~07시)",
+                "평균주간습도(08~18시)", "평균야간습도(19~07시)",
+                "평균주간CO₂(08~18시)", "평균야간CO₂(19~07시)",
+                "평균누적일사량(1일최대값기준)",
             ]
-
-            X_wk = wk_df[wk_features].copy()
-            X_wk = X_wk.fillna(X_wk.mean(numeric_only=True))
-
-            y_wk = wk_df[target_col].copy()
-
-            valid_mask_wk = y_wk.notna()
-
-            X_wk = X_wk.loc[valid_mask_wk].copy()
-            y_wk = y_wk.loc[valid_mask_wk].copy()
-
-            if len(X_wk) < 5:
-                continue
-
-            X_train_wk, X_test_wk, y_train_wk, y_test_wk = train_test_split(
-                X_wk,
-                y_wk,
-                test_size=0.2,
-                random_state=42
+        ]
+        env_feature_cols = [c for c in env_feature_cols if c in df.columns]
+        if env_feature_cols and df[env_feature_cols].notna().sum().sum() == 0:
+            sensor_min = sensor_df[date_col_sensor].min()
+            sensor_max = sensor_df[date_col_sensor].max()
+            yield_min = yield_df[date_col_yield].min()
+            yield_max = yield_df[date_col_yield].max()
+            st.warning(
+                "7주 평균 환경값이 모두 비어 있습니다. "
+                f"센서 날짜 컬럼(`{date_col_sensor}`)과 조사일자 기간이 겹치는지 확인해 주세요. "
+                f"센서: {sensor_min} ~ {sensor_max}, 조사: {yield_min} ~ {yield_max}"
             )
 
-            wk_model = make_model(model_choice)
+        env_filled_rows = int(df[env_feature_cols].notna().all(axis=1).sum()) if env_feature_cols else 0
 
-            wk_model.fit(X_train_wk, y_train_wk)
+        render_section_header(
+            "매핑 데이터",
+            f"{selected_week}주 롤링 평균 · 조사일자별 환경·생육 통합 테이블",
+            "📋",
+            accent="green",
+        )
+        render_kpi_cards([
+            ("조사 건수", f"{len(df):,}", "#2563eb"),
+            ("센서 레코드", f"{len(sensor_df):,}", "#0d9488"),
+            ("선택 주차", f"{selected_week}주", "#7c3aed"),
+            ("환경 매핑", f"{env_filled_rows}/{len(df)}", "#059669"),
+        ])
 
-            preds_wk = safe_predict(
-                wk_model,
-                X_test_wk,
-                wk_features
+        with st.container(border=True):
+            st.dataframe(df, use_container_width=True, hide_index=True)
+
+        # 환경 시계열 표시용 컬럼명
+        temp_day_col_name = build_window_feature_name(selected_week, "평균주간온도(08~18시)")
+        temp_night_col_name = build_window_feature_name(selected_week, "평균야간온도(19~07시)")
+        hum_day_col_name = build_window_feature_name(selected_week, "평균주간습도(08~18시)")
+        hum_night_col_name = build_window_feature_name(selected_week, "평균야간습도(19~07시)")
+        co2_day_col_name = build_window_feature_name(selected_week, "평균주간CO₂(08~18시)")
+        co2_night_col_name = build_window_feature_name(selected_week, "평균야간CO₂(19~07시)")
+        solar_col_name = build_window_feature_name(selected_week, "평균누적일사량(1일최대값기준)")
+
+        env_mapping = {
+            temp_day_col_name: temp_day_col_name,
+            temp_night_col_name: temp_night_col_name,
+            hum_day_col_name: hum_day_col_name,
+            hum_night_col_name: hum_night_col_name,
+            co2_day_col_name: co2_day_col_name,
+            co2_night_col_name: co2_night_col_name,
+            solar_col_name: solar_col_name,
+        }
+
+        render_section_header("환경 시계열", "주간/야간 환경 변수 추이와 구간별 해석", "🌤️", accent="amber")
+        env_options = list(env_mapping.keys())
+        env_cols = render_checkbox_group(
+            "표시할 환경 항목",
+            env_options,
+            key_prefix=f"env_chk_w{selected_week}",
+            default_all=True,
+            columns=4,
+        )
+        if env_cols:
+            for i in range(0, len(env_cols), 2):
+                cols = st.columns(2)
+                for j, label in enumerate(env_cols[i:i + 2]):
+                    with cols[j]:
+                        true_col = env_mapping[label]
+                        if true_col in df.columns:
+                            fig = build_interactive_timeseries(
+                                df, "조사일자", true_col, title=f"{label} 시계열"
+                            )
+                            display_plotly(fig)
+
+                            env_desc = explain_environment_timeseries(
+                                label,
+                                df[true_col]
+                            )
+
+                            render_insight(env_desc, variant="teal")
+
+                            st.markdown("**환경구간 기준표**")
+                            st.dataframe(
+                                environment_zone_reference_table(label),
+                                use_container_width=True,
+                                hide_index=True
+                            )
+
+                            st.markdown("**월별 환경구간 분류표**")
+                            monthly_zone_df = build_monthly_environment_zone_table(
+                                df,
+                                "조사일자",
+                                label,
+                                true_col
+                            )
+                            st.dataframe(
+                                monthly_zone_df,
+                                use_container_width=True,
+                                hide_index=True
+                            )
+
+        df = df.sort_values("조사일자")
+        growth_options = ["수확수", "착과수"] + growth_features
+
+        render_section_header("생육·수확 시계열", "수확수, 착과수 및 생육 지표 추이", "📈", accent="rose")
+        growth_plot_options = [c for c in growth_options if c in df.columns]
+        plot_cols = render_checkbox_group(
+            "표시할 생육/수확 항목",
+            growth_plot_options,
+            key_prefix=f"growth_chk_w{selected_week}",
+            default_all=True,
+            columns=3,
+        )
+        if plot_cols:
+            for i in range(0, len(plot_cols), 3):
+                cols = st.columns(3)
+                for j, col_name in enumerate(plot_cols[i:i + 3]):
+                    with cols[j]:
+                        if col_name in df.columns:
+                            fig = build_interactive_timeseries(
+                                df, "조사일자", col_name, title=f"{col_name} 시계열"
+                            )
+                            display_plotly(fig)
+
+        render_section_header(
+            "모델 설정",
+            "예측 모델과 타깃 변수를 선택하면 XAI 분석이 시작됩니다.",
+            "🤖",
+            accent="purple",
+        )
+        model_options = ["RandomForest", "GradientBoosting", "XGBoost", "LGBM", "GaussianNB"]
+        with st.container(border=True):
+            model_col, target_col_box = st.columns(2)
+            with model_col:
+                model_choice = st.selectbox("모델 선택", model_options)
+            with target_col_box:
+                target_col = st.selectbox("예측 대상 컬럼 선택", ["수확수", "착과수"] + growth_features)
+
+            st.markdown(
+                f"""<div class="xai-note">
+                현재 선택: <b>{model_choice}</b> · 예측 대상 <b>{target_col}</b><br>
+                SHAP, Feature Importance, Heatmap, ICE+PDP, Centered ALE 결과가 이 설정 기준으로 계산됩니다.
+                </div>""",
+                unsafe_allow_html=True,
             )
 
-            mse_wk = mean_squared_error(y_test_wk, preds_wk)
-            mae_wk = mean_absolute_error(y_test_wk, preds_wk)
-            r2_wk = r2_score(y_test_wk, preds_wk)
+        features = [col for col in df.columns if col not in ["조사일자", "수확수", "착과수"] + growth_features]
+        X = df[features].copy().fillna(df[features].mean(numeric_only=True))
+        y = df[target_col].copy()
+        valid_mask = y.notna()
+        X = X.loc[valid_mask].copy()
+        y = y.loc[valid_mask].copy()
 
-            weekly_metrics.append({
-                "Week": wk,
-                "MSE": mse_wk,
-                "MAE": mae_wk,
-                "R2": r2_wk
-            })
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        model = make_model(model_choice)
+        model.fit(X_train, y_train)
+        y_pred = safe_predict(model, X_test, features)
 
-        if len(weekly_metrics) > 0:
+        render_section_header(
+            "모델 평가",
+            f"{selected_week}주평균 · 예측 대상: {target_col}",
+            "📊",
+            accent="blue",
+        )
+        metrics = compute_metrics(y_test, y_pred)
 
-            weekly_metrics_df = pd.DataFrame(weekly_metrics)
+        st.markdown(
+            f"""
+    <div style="background:linear-gradient(135deg,#ffffff,#eaf3ff);
+                box-shadow:0 8px 24px rgba(0,0,0,0.08);
+                padding:18px;
+                border-radius:16px;
+                border-left:6px solid #2563eb;
+                margin-bottom:14px;">
+        <div style="font-size:18px; font-weight:800; color:#183b56;">
+            ({selected_week}주평균, 예측대상: {target_col})
+        </div>
+        <div style="display:flex; gap:18px; margin-top:12px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:180px; background:#ffffff; border-radius:14px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,0.05);">
+                <div style="font-size:14px; color:#64748b;">MSE</div>
+                <div style="font-size:26px; font-weight:900; color:#1d4ed8;">{metrics['MSE']:.3f}</div>
+            </div>
+            <div style="flex:1; min-width:180px; background:#ffffff; border-radius:14px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,0.05);">
+                <div style="font-size:14px; color:#64748b;">MAE</div>
+                <div style="font-size:26px; font-weight:900; color:#0f766e;">{metrics['MAE']:.3f}</div>
+            </div>
+            <div style="flex:1; min-width:180px; background:#ffffff; border-radius:14px; padding:14px; box-shadow:0 3px 10px rgba(0,0,0,0.05);">
+                <div style="font-size:14px; color:#64748b;">R²</div>
+                <div style="font-size:26px; font-weight:900; color:#b45309;">{metrics['R2']:.3f}</div>
+            </div>
+        </div>
+    </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-            # -------------------------------------------------
-            # MSE / MAE / R² 그래프 가로 배치
-            # -------------------------------------------------
-            st.markdown(f"### 📈 주차별 모델 성능 변화 (예측대상: {target_col})")
+        # -------------------------------------------------------------
+        # 1~7주 모델 성능 비교
+        # -------------------------------------------------------------
+        render_section_header("1~7주 모델 성능 비교", "주차별 예측 성능 변화 추이", "📈", accent="teal")
 
-            col_mse, col_mae, col_r2 = st.columns(3)
+        weekly_metrics = []
 
-            with col_mse:
-                display_plotly(build_weekly_metric_chart(weekly_metrics_df, "MSE", "MSE (평균제곱오차)", "#2563eb"))
+        try:
 
-            with col_mae:
-                display_plotly(build_weekly_metric_chart(weekly_metrics_df, "MAE", "MAE (평균절대오차)", "#0d9488"))
+            for wk in range(1, 8):
 
-            with col_r2:
-                display_plotly(build_weekly_metric_chart(weekly_metrics_df, "R2", "R² (결정계수)", "#d97706"))
+                wk_df = week_dfs[wk].copy()
 
-            st.markdown("### 📋 1~7주 모델 평가지표 표")
-            st.dataframe(
-                weekly_metrics_df.round(4),
-                use_container_width=True
-            )
+                wk_features = [
+                    c for c in wk_df.columns
+                    if c not in ["조사일자", "수확수", "착과수"] + growth_features
+                ]
 
-            # -------------------------------------------------
-            # 성능 자동 해석
-            # -------------------------------------------------
-            best_r2_row = weekly_metrics_df.sort_values(
-                "R2",
-                ascending=False
-            ).iloc[0]
+                X_wk = wk_df[wk_features].copy()
+                X_wk = X_wk.fillna(X_wk.mean(numeric_only=True))
 
-            best_mse_row = weekly_metrics_df.sort_values(
-                "MSE",
-                ascending=True
-            ).iloc[0]
+                y_wk = wk_df[target_col].copy()
 
-            best_mae_row = weekly_metrics_df.sort_values(
-                "MAE",
-                ascending=True
-            ).iloc[0]
+                valid_mask_wk = y_wk.notna()
 
-            st.markdown('<div class="pretty-box"><h3>🧠 주차별 성능 자동 해석</h3></div>', unsafe_allow_html=True)
+                X_wk = X_wk.loc[valid_mask_wk].copy()
+                y_wk = y_wk.loc[valid_mask_wk].copy()
 
-            col_metric_left, col_metric_right = st.columns(2)
+                if len(X_wk) < 5:
+                    continue
 
-            with col_metric_left:
+                X_train_wk, X_test_wk, y_train_wk, y_test_wk = train_test_split(
+                    X_wk,
+                    y_wk,
+                    test_size=0.2,
+                    random_state=42
+                )
 
-                st.markdown(
-                    f"""
+                wk_model = make_model(model_choice)
+
+                wk_model.fit(X_train_wk, y_train_wk)
+
+                preds_wk = safe_predict(
+                    wk_model,
+                    X_test_wk,
+                    wk_features
+                )
+
+                mse_wk = mean_squared_error(y_test_wk, preds_wk)
+                mae_wk = mean_absolute_error(y_test_wk, preds_wk)
+                r2_wk = r2_score(y_test_wk, preds_wk)
+
+                weekly_metrics.append({
+                    "Week": wk,
+                    "MSE": mse_wk,
+                    "MAE": mae_wk,
+                    "R2": r2_wk
+                })
+
+            if len(weekly_metrics) > 0:
+
+                weekly_metrics_df = pd.DataFrame(weekly_metrics)
+
+                # -------------------------------------------------
+                # MSE / MAE / R² 그래프 가로 배치
+                # -------------------------------------------------
+                st.markdown(f"### 📈 주차별 모델 성능 변화 (예측대상: {target_col})")
+
+                col_mse, col_mae, col_r2 = st.columns(3)
+
+                with col_mse:
+                    display_plotly(build_weekly_metric_chart(weekly_metrics_df, "MSE", "MSE (평균제곱오차)", "#2563eb"))
+
+                with col_mae:
+                    display_plotly(build_weekly_metric_chart(weekly_metrics_df, "MAE", "MAE (평균절대오차)", "#0d9488"))
+
+                with col_r2:
+                    display_plotly(build_weekly_metric_chart(weekly_metrics_df, "R2", "R² (결정계수)", "#d97706"))
+
+                st.markdown("### 📋 1~7주 모델 평가지표 표")
+                st.dataframe(
+                    weekly_metrics_df.round(4),
+                    use_container_width=True
+                )
+
+                # -------------------------------------------------
+                # 성능 자동 해석
+                # -------------------------------------------------
+                best_r2_row = weekly_metrics_df.sort_values(
+                    "R2",
+                    ascending=False
+                ).iloc[0]
+
+                best_mse_row = weekly_metrics_df.sort_values(
+                    "MSE",
+                    ascending=True
+                ).iloc[0]
+
+                best_mae_row = weekly_metrics_df.sort_values(
+                    "MAE",
+                    ascending=True
+                ).iloc[0]
+
+                st.markdown('<div class="pretty-box"><h3>🧠 주차별 성능 자동 해석</h3></div>', unsafe_allow_html=True)
+
+                col_metric_left, col_metric_right = st.columns(2)
+
+                with col_metric_left:
+
+                    st.markdown(
+                        f"""
     <div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
     padding:12px;
     border-radius:10px;
@@ -2003,14 +2906,14 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
     모델 성능이 우수한 것으로 해석합니다.
 
     </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                        """,
+                        unsafe_allow_html=True
+                    )
 
-            with col_metric_right:
+                with col_metric_right:
 
-                st.markdown(
-                    """
+                    st.markdown(
+                        """
     <div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
     padding:12px;
     border-radius:10px;
@@ -2036,203 +2939,206 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
     단위가 원래 목표변수와 동일하기 때문에 농업 현장에서는 해석이 비교적 쉬운 장점이 있습니다.
 
     </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                        """,
+                        unsafe_allow_html=True
+                    )
 
-    except Exception as e:
-        st.error(f"1~7주 모델 성능 비교 오류: {e}")
+        except Exception as e:
+            st.error(f"1~7주 모델 성능 비교 오류: {e}")
 
 
-    # -------------------------------------------------------------
-    # Time-Series Cross Validation (수정 버전)
-    # -------------------------------------------------------------
-    render_section_header("Time-Series Cross Validation", "시계열 분할 기반 모델 안정성 검증", "🧪", accent="amber")
+        # -------------------------------------------------------------
+        # Time-Series Cross Validation (수정 버전)
+        # -------------------------------------------------------------
+        render_section_header("Time-Series Cross Validation", "시계열 분할 기반 모델 안정성 검증", "🧪", accent="amber")
 
-    try:
-        # 시간 순서 정렬 (매우 중요)
-        df_cv = df.sort_values("조사일자").reset_index(drop=True)
+        try:
+            from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+            import numpy as np
 
-        features = [col for col in df_cv.columns if col not in ["조사일자", "수확수", "착과수"] + growth_features]
+            # 시간 순서 정렬 (매우 중요)
+            df_cv = df.sort_values("조사일자").reset_index(drop=True)
 
-        X_cv = df_cv[features].copy().fillna(df_cv[features].mean(numeric_only=True))
-        y_cv = df_cv[target_col].copy()
+            features = [col for col in df_cv.columns if col not in ["조사일자", "수확수", "착과수"] + growth_features]
 
-        valid_mask = y_cv.notna()
-        X_cv = X_cv.loc[valid_mask].reset_index(drop=True)
-        y_cv = y_cv.loc[valid_mask].reset_index(drop=True)
+            X_cv = df_cv[features].copy().fillna(df_cv[features].mean(numeric_only=True))
+            y_cv = df_cv[target_col].copy()
 
-        # 최소 데이터 체크
-        if len(X_cv) < 6:
-            st.warning("CV 수행을 위한 데이터가 부족합니다.")
-        else:
-            mse_list, mae_list, r2_list = [], [], []
+            valid_mask = y_cv.notna()
+            X_cv = X_cv.loc[valid_mask].reset_index(drop=True)
+            y_cv = y_cv.loc[valid_mask].reset_index(drop=True)
 
-            # 🔥 핵심 수정: test 데이터 2개 확보
-            for i in range(3, len(X_cv) - 1):
+            # 최소 데이터 체크
+            if len(X_cv) < 6:
+                st.warning("CV 수행을 위한 데이터가 부족합니다.")
+            else:
+                mse_list, mae_list, r2_list = [], [], []
 
-                X_train_cv = X_cv.iloc[:i]
-                y_train_cv = y_cv.iloc[:i]
+                # 🔥 핵심 수정: test 데이터 2개 확보
+                for i in range(3, len(X_cv) - 1):
 
-                X_test_cv = X_cv.iloc[i:i + 2]
-                y_test_cv = y_cv.iloc[i:i + 2]
+                    X_train_cv = X_cv.iloc[:i]
+                    y_train_cv = y_cv.iloc[:i]
 
-                model_cv = make_model(model_choice)
-                model_cv.fit(X_train_cv, y_train_cv)
+                    X_test_cv = X_cv.iloc[i:i + 2]
+                    y_test_cv = y_cv.iloc[i:i + 2]
 
-                preds_cv = safe_predict(model_cv, X_test_cv, features)
+                    model_cv = make_model(model_choice)
+                    model_cv.fit(X_train_cv, y_train_cv)
 
-                mse_list.append(mean_squared_error(y_test_cv, preds_cv))
-                mae_list.append(mean_absolute_error(y_test_cv, preds_cv))
+                    preds_cv = safe_predict(model_cv, X_test_cv, features)
 
-                # 🔥 R² 안전 계산
-                if len(y_test_cv) > 1:
-                    r2_list.append(r2_score(y_test_cv, preds_cv))
-                else:
-                    r2_list.append(np.nan)
+                    mse_list.append(mean_squared_error(y_test_cv, preds_cv))
+                    mae_list.append(mean_absolute_error(y_test_cv, preds_cv))
 
-            # 🔥 NaN 제거 후 평균 계산
-            cv_mse = float(np.mean(mse_list))
-            cv_mae = float(np.mean(mae_list))
-            cv_r2 = float(np.nanmean(r2_list))
+                    # 🔥 R² 안전 계산
+                    if len(y_test_cv) > 1:
+                        r2_list.append(r2_score(y_test_cv, preds_cv))
+                    else:
+                        r2_list.append(np.nan)
 
-            st.markdown("### 🧪 Time-Series CV 평균 성능")
-            render_kpi_cards([
-                ("MSE", f"{cv_mse:.3f}", "#2563eb"),
-                ("MAE", f"{cv_mae:.3f}", "#0d9488"),
-                ("R²", f"{cv_r2:.3f}", "#d97706"),
-            ])
+                # 🔥 NaN 제거 후 평균 계산
+                cv_mse = float(np.mean(mse_list))
+                cv_mae = float(np.mean(mae_list))
+                cv_r2 = float(np.nanmean(r2_list))
 
-            st.markdown(
-                f"""
+                st.markdown("### 🧪 Time-Series CV 평균 성능")
+                render_kpi_cards([
+                    ("MSE", f"{cv_mse:.3f}", "#2563eb"),
+                    ("MAE", f"{cv_mae:.3f}", "#0d9488"),
+                    ("R²", f"{cv_r2:.3f}", "#d97706"),
+                ])
+
+                st.markdown(
+                    f"""
     <div style="background:linear-gradient(135deg,#ffffff,#eef5ff);
-            box-shadow:0 6px 20px rgba(0,0,0,0.06);
-            padding:16px;
-            border-radius:14px;
-            line-height:1.8;
-            font-size:15px;">
+                box-shadow:0 6px 20px rgba(0,0,0,0.06);
+                padding:16px;
+                border-radius:14px;
+                line-height:1.8;
+                font-size:15px;">
     <b>Time-Series Cross Validation 해석</b><br><br>
     시간 순서를 유지한 상태에서 과거 데이터를 학습하고 이후 시점 데이터를 평가한 결과입니다.<br>
     평균 MSE는 <b>{cv_mse:.3f}</b>, 평균 MAE는 <b>{cv_mae:.3f}</b>, 평균 R²는 <b>{cv_r2:.3f}</b>입니다.<br>
     이는 무작위 분할보다 실제 생육·수확 예측 흐름에 가까운 검증 방식으로, 시계열 기반 예측 안정성을 확인하는 데 활용됩니다.
     </div>
-                """,
-                unsafe_allow_html=True
-            )
+                    """,
+                    unsafe_allow_html=True
+                )
 
-    except Exception as e:
-        st.error(f"CV 실행 오류: {e}")
-
-    render_section_header(
-        "XAI 자동 리포트",
-        "SHAP · Feature Importance · ICE · PDP · ALE 통합 분석",
-        "🧠",
-        accent="purple",
-    )
-
-    shap_values = None
-    shap_df = None
-    fi_df = None
-    temporal_df = None
-    week_importance = None
-    heatmap_df = None
-    weekly_metrics_df = None
-    cf_result = None
-    ice_mean_slope = None
-    ice_std_slope = None
-    pdp_summary = None
-    ale_summary = None
-    bin_centers = None
-    ale_vals = None
-
-    top_col1, top_col2 = st.columns([1, 1])
-
-    with top_col1:
-        st.markdown(f"### 🔍 SHAP Summary (예측 대상: {target_col})")
-        if model_choice == "GaussianNB":
-            st.info("GaussianNB 모델은 SHAP 사용이 제한적입니다.")
-        else:
-            try:
-                explainer = shap.Explainer(model, X_train)
-                shap_values = explainer(X_test, check_additivity=False)
-
-                fig_shap = plt.figure(figsize=(6, 4))
-                shap.summary_plot(shap_values.values, X_test, show=False)
-                display_matplotlib(fig_shap)
-                plt.close(fig_shap)
-
-                shap_df = summarize_shap_results(shap_values, features)
-                st.dataframe(shap_df[["Feature", "Mean(|SHAP|)", "Mean(SHAP)"]].head(12).round(6), use_container_width=True)
-                st.markdown("**SHAP Summary 최종 결과**")
-                st.info(explain_shap_summary(shap_df))
-                st.markdown("**SHAP Summary 상세 설명**")
-                render_insight(explain_shap_summary_detail(shap_df, target_col, model_choice), variant="purple")
-
-            except Exception as e:
-                st.error(f"SHAP 계산/시각화 오류: {e}")
-
-    with top_col2:
-        st.markdown(f"### 📊 Feature Importance (Model-based) (예측대상: {target_col})")
-        try:
-            fi_df = feature_importance_table(model, features)
-            fig_fi, ax_fi = plt.subplots(figsize=(6, 4))
-            ax_fi.barh(fi_df["Feature"], fi_df["Importance"])
-            ax_fi.invert_yaxis()
-            ax_fi.set_title("Feature Importance")
-            display_matplotlib(fig_fi)
-            plt.close(fig_fi)
-
-            st.markdown("**Feature Importance 요약**")
-            top = fi_df.head(5)
-            tot = fi_df["Importance"].sum()
-            for _, r in top.iterrows():
-                pct = 100.0 * r["Importance"] / tot if tot > 0 else 0.0
-                st.write(f"• {r['Feature']}: {pct:.1f}%")
-            st.info(explain_feature_importance(fi_df))
-            st.markdown("**Feature Importance 상세 설명**")
-            st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_feature_importance_detail(fi_df, target_col, model_choice)}</div>""", unsafe_allow_html=True)
         except Exception as e:
-            st.error(f"Feature Importance 처리 오류: {e}")
+            st.error(f"CV 실행 오류: {e}")
 
-    # Temporal SHAP + Heatmap
-    st.subheader("⏱ Temporal SHAP")
-    if shap_values is not None:
-        try:
-            # 1~7주 전체 feature로 재학습하여 주차 설명력 계산
-            merged_df = week_dfs[1][["조사일자", "수확수", "착과수"] + growth_features].copy()
-            for week in range(1, 8):
-                wk_df = week_dfs[week].copy()
-                add_cols = [c for c in wk_df.columns if c not in ["조사일자", "수확수", "착과수"] + growth_features]
-                merged_df = merged_df.merge(wk_df[["조사일자"] + add_cols], on="조사일자", how="left")
+        render_section_header(
+            "XAI 자동 리포트",
+            "SHAP · Feature Importance · ICE · PDP · ALE 통합 분석",
+            "🧠",
+            accent="purple",
+        )
 
-            temporal_features = [c for c in merged_df.columns if c not in ["조사일자", "수확수", "착과수"] + growth_features]
-            mX = merged_df[temporal_features].copy().fillna(merged_df[temporal_features].mean(numeric_only=True))
-            my = merged_df[target_col].copy()
-            valid_mask2 = my.notna()
-            mX = mX.loc[valid_mask2].copy()
-            my = my.loc[valid_mask2].copy()
+        shap_values = None
+        shap_df = None
+        fi_df = None
+        temporal_df = None
+        week_importance = None
+        heatmap_df = None
+        weekly_metrics_df = None
+        cf_result = None
+        ice_mean_slope = None
+        ice_std_slope = None
+        pdp_summary = None
+        ale_summary = None
+        bin_centers = None
+        ale_vals = None
 
-            mX_train, mX_test, my_train, my_test = train_test_split(mX, my, test_size=0.2, random_state=42)
-            temporal_model = make_model(model_choice)
-            temporal_model.fit(mX_train, my_train)
-            temporal_explainer = shap.Explainer(temporal_model, mX_train)
-            temporal_shap_values = temporal_explainer(mX_test, check_additivity=False)
+        top_col1, top_col2 = st.columns([1, 1])
 
-            temporal_df, week_importance, heatmap_df = build_temporal_shap_tables(temporal_shap_values, temporal_features)
+        with top_col1:
+            st.markdown(f"### 🔍 SHAP Summary (예측 대상: {target_col})")
+            if model_choice == "GaussianNB":
+                st.info("GaussianNB 모델은 SHAP 사용이 제한적입니다.")
+            else:
+                try:
+                    explainer = shap.Explainer(model, X_train)
+                    shap_values = explainer(X_test, check_additivity=False)
 
-            if week_importance is not None and not week_importance.empty:
-                fig_ts = fig_temporal_shap_bar(week_importance)
-                display_matplotlib(fig_ts)
-                plt.close(fig_ts)
+                    fig_shap = plt.figure(figsize=(6, 4))
+                    shap.summary_plot(shap_values.values, X_test, show=False)
+                    display_matplotlib(fig_shap)
+                    plt.close(fig_shap)
 
-                st.dataframe(week_importance.round(5), use_container_width=True)
-                st.markdown("**Temporal SHAP 최종 결과**")
-                st.info(explain_temporal_shap(week_importance, target_col))
+                    shap_df = summarize_shap_results(shap_values, features)
+                    st.dataframe(shap_df[["Feature", "Mean(|SHAP|)", "Mean(SHAP)"]].head(12).round(6), use_container_width=True)
+                    st.markdown("**SHAP Summary 최종 결과**")
+                    st.info(explain_shap_summary(shap_df))
+                    st.markdown("**SHAP Summary 상세 설명**")
+                    render_insight(explain_shap_summary_detail(shap_df, target_col, model_choice), variant="purple")
 
-                st.markdown("**Temporal SHAP 지표 상세 설명**")
+                except Exception as e:
+                    st.error(f"SHAP 계산/시각화 오류: {e}")
 
-                st.markdown(
-                    """
+        with top_col2:
+            st.markdown(f"### 📊 Feature Importance (Model-based) (예측대상: {target_col})")
+            try:
+                fi_df = feature_importance_table(model, features)
+                fig_fi, ax_fi = plt.subplots(figsize=(6, 4))
+                ax_fi.barh(fi_df["Feature"], fi_df["Importance"])
+                ax_fi.invert_yaxis()
+                ax_fi.set_title("Feature Importance")
+                display_matplotlib(fig_fi)
+                plt.close(fig_fi)
+
+                st.markdown("**Feature Importance 요약**")
+                top = fi_df.head(5)
+                tot = fi_df["Importance"].sum()
+                for _, r in top.iterrows():
+                    pct = 100.0 * r["Importance"] / tot if tot > 0 else 0.0
+                    st.write(f"• {r['Feature']}: {pct:.1f}%")
+                st.info(explain_feature_importance(fi_df))
+                st.markdown("**Feature Importance 상세 설명**")
+                st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_feature_importance_detail(fi_df, target_col, model_choice)}</div>""", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Feature Importance 처리 오류: {e}")
+
+        # Temporal SHAP + Heatmap
+        st.subheader("⏱ Temporal SHAP")
+        if shap_values is not None:
+            try:
+                # 1~7주 전체 feature로 재학습하여 주차 설명력 계산
+                merged_df = week_dfs[1][["조사일자", "수확수", "착과수"] + growth_features].copy()
+                for week in range(1, 8):
+                    wk_df = week_dfs[week].copy()
+                    add_cols = [c for c in wk_df.columns if c not in ["조사일자", "수확수", "착과수"] + growth_features]
+                    merged_df = merged_df.merge(wk_df[["조사일자"] + add_cols], on="조사일자", how="left")
+
+                temporal_features = [c for c in merged_df.columns if c not in ["조사일자", "수확수", "착과수"] + growth_features]
+                mX = merged_df[temporal_features].copy().fillna(merged_df[temporal_features].mean(numeric_only=True))
+                my = merged_df[target_col].copy()
+                valid_mask2 = my.notna()
+                mX = mX.loc[valid_mask2].copy()
+                my = my.loc[valid_mask2].copy()
+
+                mX_train, mX_test, my_train, my_test = train_test_split(mX, my, test_size=0.2, random_state=42)
+                temporal_model = make_model(model_choice)
+                temporal_model.fit(mX_train, my_train)
+                temporal_explainer = shap.Explainer(temporal_model, mX_train)
+                temporal_shap_values = temporal_explainer(mX_test, check_additivity=False)
+
+                temporal_df, week_importance, heatmap_df = build_temporal_shap_tables(temporal_shap_values, temporal_features)
+
+                if week_importance is not None and not week_importance.empty:
+                    fig_ts = fig_temporal_shap_bar(week_importance)
+                    display_matplotlib(fig_ts)
+                    plt.close(fig_ts)
+
+                    st.dataframe(week_importance.round(5), use_container_width=True)
+                    st.markdown("**Temporal SHAP 최종 결과**")
+                    st.info(explain_temporal_shap(week_importance, target_col))
+
+                    st.markdown("**Temporal SHAP 지표 상세 설명**")
+
+                    st.markdown(
+                        """
     <div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
     padding:14px;
     border-radius:10px;
@@ -2253,206 +3159,206 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
     즉, 해당 시기의 환경이 생육/수확에 긍정적이었는지 부정적이었는지를 해석할 수 있습니다.
 
     </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                        """,
+                        unsafe_allow_html=True
+                    )
 
 
-            else:
-                st.warning("Temporal SHAP를 계산할 수 없습니다. 주차 feature가 충분하지 않습니다.")
-
-            st.subheader("🔥 Feature × Week Heatmap")
-            if heatmap_df is not None and not heatmap_df.empty:
-                fig_hm = fig_feature_week_heatmap(heatmap_df, target_col)
-                display_matplotlib(fig_hm)
-                plt.close(fig_hm)
-
-                heatmap_table = temporal_df[["Feature", "Mean(|SHAP|)"]].sort_values("Mean(|SHAP|)", ascending=False)
-                st.dataframe(heatmap_table.round(5), use_container_width=True)
-                st.markdown("**Feature × Week Heatmap 최종 결과**")
-
-                st.markdown(
-                    f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
-                    padding:14px;
-                    border-radius:10px;
-                    line-height:1.8;
-                    font-size:16px">{explain_heatmap(heatmap_df, target_col)}</div>""",
-                    unsafe_allow_html=True
-                )
-                st.markdown("**Feature × Week Heatmap 상세 설명**")
-                st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_heatmap_detail(heatmap_df, temporal_df, target_col)}</div>""", unsafe_allow_html=True)
-            else:
-                st.warning("Heatmap을 계산할 수 없습니다.")
-
-        except Exception as e:
-            st.warning(f"Temporal SHAP / Heatmap 오류: {e}")
-
-    # Counterfactual
-    st.subheader("🔧 Counterfactual (환경 제어 시뮬레이션)")
-
-    try:
-        if len(X_test) == 0:
-            st.warning("Counterfactual을 계산할 테스트 샘플이 없습니다.")
-        else:
-            x0 = X_test.iloc[0].copy()
-
-            cf_result = generate_counterfactual(
-                model=model,
-                x_row=x0,
-                X_ref=X_train,
-                feature_names=features,
-                target_delta=1.0,
-                n_iter=2000,
-                random_state=42,
-                top_n=5,
-            )
-
-            if cf_result is None:
-                st.warning("Counterfactual 결과를 생성하지 못했습니다.")
-            else:
-                before_pred = float(cf_result.get("base_pred", np.nan))
-                after_pred = float(cf_result.get("cf_pred", np.nan))
-                delta_pred = after_pred - before_pred
-
-                priority_df = cf_result.get("priority_df", pd.DataFrame()).copy()
-                selected_df = cf_result.get("selected_df", pd.DataFrame()).copy()
-                diff_df = cf_result.get("diff_df", pd.DataFrame()).copy()
-
-                if not selected_df.empty:
-                    top_feature = str(selected_df.iloc[0].get("Feature", "없음"))
-                    top_group = str(selected_df.iloc[0].get("ControlGroup", "없음"))
-                elif not priority_df.empty:
-                    top_feature = str(priority_df.iloc[0].get("Feature", "없음"))
-                    top_group = str(priority_df.iloc[0].get("ControlGroup", "없음"))
                 else:
-                    top_feature = "없음"
-                    top_group = "없음"
+                    st.warning("Temporal SHAP를 계산할 수 없습니다. 주차 feature가 충분하지 않습니다.")
 
-                render_alert_card(
-                    "단위가 큰 누적일사량이 반복적으로 선택되는 문제를 줄이기 위해 "
-                    "표준화 변화량(StdChange), 예측 개선량(PredDelta), PriorityScore를 함께 사용했습니다. "
-                    "또한 동일 제어군만 반복 추천되지 않도록 제어군별 대표 후보를 우선 선발합니다.",
-                    variant="info",
+                st.subheader("🔥 Feature × Week Heatmap")
+                if heatmap_df is not None and not heatmap_df.empty:
+                    fig_hm = fig_feature_week_heatmap(heatmap_df, target_col)
+                    display_matplotlib(fig_hm)
+                    plt.close(fig_hm)
+
+                    heatmap_table = temporal_df[["Feature", "Mean(|SHAP|)"]].sort_values("Mean(|SHAP|)", ascending=False)
+                    st.dataframe(heatmap_table.round(5), use_container_width=True)
+                    st.markdown("**Feature × Week Heatmap 최종 결과**")
+
+                    st.markdown(
+                        f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
+                        padding:14px;
+                        border-radius:10px;
+                        line-height:1.8;
+                        font-size:16px">{explain_heatmap(heatmap_df, target_col)}</div>""",
+                        unsafe_allow_html=True
+                    )
+                    st.markdown("**Feature × Week Heatmap 상세 설명**")
+                    st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_heatmap_detail(heatmap_df, temporal_df, target_col)}</div>""", unsafe_allow_html=True)
+                else:
+                    st.warning("Heatmap을 계산할 수 없습니다.")
+
+            except Exception as e:
+                st.warning(f"Temporal SHAP / Heatmap 오류: {e}")
+
+        # Counterfactual
+        st.subheader("🔧 Counterfactual (환경 제어 시뮬레이션)")
+
+        try:
+            if len(X_test) == 0:
+                st.warning("Counterfactual을 계산할 테스트 샘플이 없습니다.")
+            else:
+                x0 = X_test.iloc[0].copy()
+
+                cf_result = generate_counterfactual(
+                    model=model,
+                    x_row=x0,
+                    X_ref=X_train,
+                    feature_names=features,
+                    target_delta=1.0,
+                    n_iter=2000,
+                    random_state=42,
+                    top_n=5,
                 )
 
-                render_kpi_cards([
-                    ("현재 예측값", f"{before_pred:.3f}", "#2563eb"),
-                    ("Counterfactual 예측값", f"{after_pred:.3f}", "#059669"),
-                    ("변화량", f"{delta_pred:+.3f}", "#d97706"),
-                    ("1순위 제어 후보", top_group, "#7c3aed"),
-                ])
-
-                st.markdown("### 📋 Top-N 환경제어 우선순위")
-
-                if not priority_df.empty:
-                    priority_cols = [
-                        "Feature", "ControlGroup", "Original", "Counterfactual",
-                        "Change", "StdChange", "PredDelta", "PriorityScore",
-                        "Direction", "Recommendation"
-                    ]
-                    priority_cols = [c for c in priority_cols if c in priority_df.columns]
-
-                    priority_view = (
-                        priority_df[priority_cols]
-                        .head(10)
-                        .copy()
-                    )
-
-                    numeric_cols = priority_view.select_dtypes(include=[np.number]).columns
-                    priority_view[numeric_cols] = priority_view[numeric_cols].round(4)
-
-                    st.dataframe(
-                        priority_view,
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                if cf_result is None:
+                    st.warning("Counterfactual 결과를 생성하지 못했습니다.")
                 else:
-                    st.warning("표시할 Counterfactual 우선순위 후보가 없습니다.")
+                    before_pred = float(cf_result.get("base_pred", np.nan))
+                    after_pred = float(cf_result.get("cf_pred", np.nan))
+                    delta_pred = after_pred - before_pred
 
-                st.markdown("### 🧭 환경제어 추천 카드")
+                    priority_df = cf_result.get("priority_df", pd.DataFrame()).copy()
+                    selected_df = cf_result.get("selected_df", pd.DataFrame()).copy()
+                    diff_df = cf_result.get("diff_df", pd.DataFrame()).copy()
 
-                card_col1, card_col2 = st.columns(2)
-
-                with card_col1:
-                    render_alert_card(
-                        f"<b>1순위 제어군:</b> {top_group}<br><br>"
-                        f"<b>대표 변수:</b> {top_feature}<br><br>"
-                        f"이 후보는 현재 모델이 {target_col} 예측값을 높일 가능성이 있다고 판단한 "
-                        "우선 검토 대상입니다.",
-                        variant="success",
-                    )
-
-                with card_col2:
-                    if not selected_df.empty and "Recommendation" in selected_df.columns:
-                        first_rec = str(selected_df.iloc[0].get("Recommendation", "현장 조건과 함께 검토하세요."))
-                    elif not priority_df.empty and "Recommendation" in priority_df.columns:
-                        first_rec = str(priority_df.iloc[0].get("Recommendation", "현장 조건과 함께 검토하세요."))
+                    if not selected_df.empty:
+                        top_feature = str(selected_df.iloc[0].get("Feature", "없음"))
+                        top_group = str(selected_df.iloc[0].get("ControlGroup", "없음"))
+                    elif not priority_df.empty:
+                        top_feature = str(priority_df.iloc[0].get("Feature", "없음"))
+                        top_group = str(priority_df.iloc[0].get("ControlGroup", "없음"))
                     else:
-                        first_rec = "현장 조건과 생육단계를 함께 검토하여 제어 방향을 결정하세요."
+                        top_feature = "없음"
+                        top_group = "없음"
 
                     render_alert_card(
-                        f"<b>권장 제어 방향</b><br><br>{first_rec}<br><br>"
-                        "Counterfactual은 실제 정답 제어값이 아니라, 학습 데이터 범위에서 계산된 "
-                        "가설적 제어 후보입니다.",
-                        variant="warning",
-                    )
-
-                st.markdown("### 🔎 선택된 복합 Counterfactual 변화량")
-
-                if not diff_df.empty:
-                    diff_cols = [
-                        "Feature", "ControlGroup", "Original", "Counterfactual",
-                        "Change", "StdChange", "PredDelta", "PriorityScore",
-                        "Recommendation"
-                    ]
-                    diff_cols = [c for c in diff_cols if c in diff_df.columns]
-
-                    diff_view = diff_df[diff_cols].head(10).copy()
-                    numeric_cols = diff_view.select_dtypes(include=[np.number]).columns
-                    diff_view[numeric_cols] = diff_view[numeric_cols].round(4)
-
-                    st.dataframe(
-                        diff_view,
-                        use_container_width=True,
-                        hide_index=True
-                    )
-                else:
-                    st.warning("표시할 Counterfactual 변화량 데이터가 없습니다.")
-
-                st.markdown("### 📌 지표 해석")
-
-                interpret_col1, interpret_col2 = st.columns(2)
-
-                with interpret_col1:
-                    render_alert_card(
-                        "<b>Change</b>: 현재값과 Counterfactual 값의 원 단위 차이입니다.<br><br>"
-                        "<b>StdChange</b>: 표준편차 기준으로 환산한 변화량입니다. "
-                        "온도·습도·CO₂·일사량처럼 단위가 다른 변수를 공정하게 비교하는 데 사용합니다.",
+                        "단위가 큰 누적일사량이 반복적으로 선택되는 문제를 줄이기 위해 "
+                        "표준화 변화량(StdChange), 예측 개선량(PredDelta), PriorityScore를 함께 사용했습니다. "
+                        "또한 동일 제어군만 반복 추천되지 않도록 제어군별 대표 후보를 우선 선발합니다.",
                         variant="info",
                     )
 
-                with interpret_col2:
-                    render_alert_card(
-                        "<b>PredDelta</b>: 해당 변수 조정 시 예측값이 얼마나 개선되는지 나타냅니다.<br><br>"
-                        "<b>PriorityScore</b>: PredDelta와 표준화 효율을 함께 반영한 환경제어 우선순위 점수입니다.",
-                        variant="info",
-                    )
+                    render_kpi_cards([
+                        ("현재 예측값", f"{before_pred:.3f}", "#2563eb"),
+                        ("Counterfactual 예측값", f"{after_pred:.3f}", "#059669"),
+                        ("변화량", f"{delta_pred:+.3f}", "#d97706"),
+                        ("1순위 제어 후보", top_group, "#7c3aed"),
+                    ])
 
-                if not priority_df.empty:
-                    st.markdown("### ✅ 환경제어 의사결정 요약")
+                    st.markdown("### 📋 Top-N 환경제어 우선순위")
 
-                    top_rows = priority_df.head(5).copy()
-                    decision_cols = st.columns(5)
-                    for idx, (_, r) in enumerate(top_rows.iterrows(), start=1):
-                        group = r.get("ControlGroup", "기타")
-                        feature = pretty_time_text(r.get("Feature", ""))
-                        direction = r.get("Direction", "")
-                        pred_delta = r.get("PredDelta", np.nan)
-                        rec = r.get("Recommendation", "")
+                    if not priority_df.empty:
+                        priority_cols = [
+                            "Feature", "ControlGroup", "Original", "Counterfactual",
+                            "Change", "StdChange", "PredDelta", "PriorityScore",
+                            "Direction", "Recommendation"
+                        ]
+                        priority_cols = [c for c in priority_cols if c in priority_df.columns]
 
-                        with decision_cols[(idx - 1) % 5]:
-                            st.markdown(
-                                f"""
+                        priority_view = (
+                            priority_df[priority_cols]
+                            .head(10)
+                            .copy()
+                        )
+
+                        numeric_cols = priority_view.select_dtypes(include=[np.number]).columns
+                        priority_view[numeric_cols] = priority_view[numeric_cols].round(4)
+
+                        st.dataframe(
+                            priority_view,
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                    else:
+                        st.warning("표시할 Counterfactual 우선순위 후보가 없습니다.")
+
+                    st.markdown("### 🧭 환경제어 추천 카드")
+
+                    card_col1, card_col2 = st.columns(2)
+
+                    with card_col1:
+                        render_alert_card(
+                            f"<b>1순위 제어군:</b> {top_group}<br><br>"
+                            f"<b>대표 변수:</b> {top_feature}<br><br>"
+                            f"이 후보는 현재 모델이 {target_col} 예측값을 높일 가능성이 있다고 판단한 "
+                            "우선 검토 대상입니다.",
+                            variant="success",
+                        )
+
+                    with card_col2:
+                        if not selected_df.empty and "Recommendation" in selected_df.columns:
+                            first_rec = str(selected_df.iloc[0].get("Recommendation", "현장 조건과 함께 검토하세요."))
+                        elif not priority_df.empty and "Recommendation" in priority_df.columns:
+                            first_rec = str(priority_df.iloc[0].get("Recommendation", "현장 조건과 함께 검토하세요."))
+                        else:
+                            first_rec = "현장 조건과 생육단계를 함께 검토하여 제어 방향을 결정하세요."
+
+                        render_alert_card(
+                            f"<b>권장 제어 방향</b><br><br>{first_rec}<br><br>"
+                            "Counterfactual은 실제 정답 제어값이 아니라, 학습 데이터 범위에서 계산된 "
+                            "가설적 제어 후보입니다.",
+                            variant="warning",
+                        )
+
+                    st.markdown("### 🔎 선택된 복합 Counterfactual 변화량")
+
+                    if not diff_df.empty:
+                        diff_cols = [
+                            "Feature", "ControlGroup", "Original", "Counterfactual",
+                            "Change", "StdChange", "PredDelta", "PriorityScore",
+                            "Recommendation"
+                        ]
+                        diff_cols = [c for c in diff_cols if c in diff_df.columns]
+
+                        diff_view = diff_df[diff_cols].head(10).copy()
+                        numeric_cols = diff_view.select_dtypes(include=[np.number]).columns
+                        diff_view[numeric_cols] = diff_view[numeric_cols].round(4)
+
+                        st.dataframe(
+                            diff_view,
+                            use_container_width=True,
+                            hide_index=True
+                        )
+                    else:
+                        st.warning("표시할 Counterfactual 변화량 데이터가 없습니다.")
+
+                    st.markdown("### 📌 지표 해석")
+
+                    interpret_col1, interpret_col2 = st.columns(2)
+
+                    with interpret_col1:
+                        render_alert_card(
+                            "<b>Change</b>: 현재값과 Counterfactual 값의 원 단위 차이입니다.<br><br>"
+                            "<b>StdChange</b>: 표준편차 기준으로 환산한 변화량입니다. "
+                            "온도·습도·CO₂·일사량처럼 단위가 다른 변수를 공정하게 비교하는 데 사용합니다.",
+                            variant="info",
+                        )
+
+                    with interpret_col2:
+                        render_alert_card(
+                            "<b>PredDelta</b>: 해당 변수 조정 시 예측값이 얼마나 개선되는지 나타냅니다.<br><br>"
+                            "<b>PriorityScore</b>: PredDelta와 표준화 효율을 함께 반영한 환경제어 우선순위 점수입니다.",
+                            variant="info",
+                        )
+
+                    if not priority_df.empty:
+                        st.markdown("### ✅ 환경제어 의사결정 요약")
+
+                        top_rows = priority_df.head(5).copy()
+                        decision_cols = st.columns(5)
+                        for idx, (_, r) in enumerate(top_rows.iterrows(), start=1):
+                            group = r.get("ControlGroup", "기타")
+                            feature = pretty_time_text(r.get("Feature", ""))
+                            direction = r.get("Direction", "")
+                            pred_delta = r.get("PredDelta", np.nan)
+                            rec = r.get("Recommendation", "")
+
+                            with decision_cols[(idx - 1) % 5]:
+                                st.markdown(
+                                    f"""
     <div style="background:linear-gradient(135deg,#ffffff,#eef5ff); border:1px solid #dbeafe; box-shadow:0 6px 16px rgba(15,23,42,0.08); border-radius:16px; padding:14px; min-height:190px; line-height:1.55; word-break:keep-all; overflow-wrap:break-word;">
     <div style="font-size:13px; color:#64748b; font-weight:700;">{idx}순위 · {group}</div>
     <div style="font-size:15px; font-weight:800; color:#183b56; margin-top:6px;">{feature}</div>
@@ -2461,354 +3367,354 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
     <div style="margin-top:8px; font-size:13px; color:#334155;">{rec}</div>
     </div>
     """,
-                                unsafe_allow_html=True
-                            )
+                                    unsafe_allow_html=True
+                                )
 
-                    st.markdown(
-                        """
+                        st.markdown(
+                            """
     <div style="background:linear-gradient(135deg,#0f766e,#2563eb); color:white; padding:16px; border-radius:16px; box-shadow:0 8px 22px rgba(37,99,235,0.22); line-height:1.7; margin-top:12px;">
     <b style="color:white;">제어 전략 해석</b><br>
     누적일사량이 계속 1순위로 보이면 모델이 광환경을 강하게 학습했을 가능성이 있습니다. 개선된 방식에서는 제어군별 대표 후보를 함께 보여주므로, 온도·습도·CO₂·광환경 후보를 조합해 현실적인 제어전략을 수립하는 것이 좋습니다.
     </div>
     """,
-                        unsafe_allow_html=True
-                    )
+                            unsafe_allow_html=True
+                        )
 
-    except Exception as e:
-        st.error(f"Counterfactual 오류: {e}")
-
-    # SHAP 상세 해석
-    st.markdown("### 🔎 SHAP 샘플별 상세 해석")
-    st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_shap_sample_intro()}</div>""", unsafe_allow_html=True)
-    sample_idx = st.number_input("샘플 인덱스 (X_test 기준)", min_value=0, max_value=max(0, len(X_test) - 1), value=0, step=1)
-    st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_sample_index(sample_idx, X_test)}</div>""", unsafe_allow_html=True)
-    if shap_values is not None and model_choice != "GaussianNB":
-        try:
-            shp_s = shap_values[sample_idx].values
-            shap_sample_df = pd.DataFrame({"Feature": features, "SHAP": shp_s}).sort_values(
-                by="SHAP", key=lambda s: np.abs(s), ascending=False
-            )
-            st.dataframe(shap_sample_df.head(20).round(4), use_container_width=True)
-            st.markdown("**선택 샘플 SHAP 결과 설명**")
-            st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_shap_sample_result(shap_sample_df, target_col)}</div>""", unsafe_allow_html=True)
         except Exception as e:
-            st.error(f"SHAP 샘플 분석 오류: {e}")
+            st.error(f"Counterfactual 오류: {e}")
 
-    # ICE / PDP / ALE
-    st.subheader("ICE + PDP 통합 / Centered ALE — 그래프 + 최적 구간 리포트")
-    ice_feature = st.selectbox("분석할 Feature 선택 (ICE/PDP/ALE)", features, key="xai_feature")
-    st.info(
-        f"현재 선택한 분석 Feature는 **{ice_feature}**입니다. "
-        "아래 ICE+PDP와 Centered ALE 그래프는 이 변수 하나의 변화가 예측 결과에 어떤 영향을 주는지 해석합니다."
-    )
-    n_samples = st.slider("ICE 샘플 수", 1, max(1, len(X_test)), value=min(50, len(X_test)), key="ice_samples")
-    ale_bins = st.slider("ALE bins 수", 4, 30, 10)
+        # SHAP 상세 해석
+        st.markdown("### 🔎 SHAP 샘플별 상세 해석")
+        st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_shap_sample_intro()}</div>""", unsafe_allow_html=True)
+        sample_idx = st.number_input("샘플 인덱스 (X_test 기준)", min_value=0, max_value=max(0, len(X_test) - 1), value=0, step=1)
+        st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_sample_index(sample_idx, X_test)}</div>""", unsafe_allow_html=True)
+        if shap_values is not None and model_choice != "GaussianNB":
+            try:
+                shp_s = shap_values[sample_idx].values
+                shap_sample_df = pd.DataFrame({"Feature": features, "SHAP": shp_s}).sort_values(
+                    by="SHAP", key=lambda s: np.abs(s), ascending=False
+                )
+                st.dataframe(shap_sample_df.head(20).round(4), use_container_width=True)
+                st.markdown("**선택 샘플 SHAP 결과 설명**")
+                st.markdown(f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_shap_sample_result(shap_sample_df, target_col)}</div>""", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"SHAP 샘플 분석 오류: {e}")
 
-    def compute_centered_ale(model, X, feature, bins=10):
-        x = X[feature].values
-        mask = ~np.isnan(x)
-        x = x[mask]
+        # ICE / PDP / ALE
+        st.subheader("ICE + PDP 통합 / Centered ALE — 그래프 + 최적 구간 리포트")
+        ice_feature = st.selectbox("분석할 Feature 선택 (ICE/PDP/ALE)", features, key="xai_feature")
+        st.info(
+            f"현재 선택한 분석 Feature는 **{ice_feature}**입니다. "
+            "아래 ICE+PDP와 Centered ALE 그래프는 이 변수 하나의 변화가 예측 결과에 어떤 영향을 주는지 해석합니다."
+        )
+        n_samples = st.slider("ICE 샘플 수", 1, max(1, len(X_test)), value=min(50, len(X_test)), key="ice_samples")
+        ale_bins = st.slider("ALE bins 수", 4, 30, 10)
 
-        X_valid = X.loc[mask].reset_index(drop=True)
+        def compute_centered_ale(model, X, feature, bins=10):
+            x = X[feature].values
+            mask = ~np.isnan(x)
+            x = x[mask]
 
-        percentiles = np.linspace(0, 100, bins + 1)
-        cutpoints = np.unique(np.percentile(x, percentiles))
+            X_valid = X.loc[mask].reset_index(drop=True)
 
-        if len(cutpoints) < 2:
-            return np.array([np.mean(x)]), np.array([0.0])
+            percentiles = np.linspace(0, 100, bins + 1)
+            cutpoints = np.unique(np.percentile(x, percentiles))
 
-        local_effects = []
-        bin_centers = []
+            if len(cutpoints) < 2:
+                return np.array([np.mean(x)]), np.array([0.0])
 
-        for i in range(len(cutpoints) - 1):
+            local_effects = []
+            bin_centers = []
 
-            lo = cutpoints[i]
-            hi = cutpoints[i + 1]
+            for i in range(len(cutpoints) - 1):
 
-            in_bin = (
-                (X_valid[feature] >= lo) &
-                (X_valid[feature] <= hi)
-            )
+                lo = cutpoints[i]
+                hi = cutpoints[i + 1]
 
-            if in_bin.sum() == 0:
-                local_effects.append(0.0)
+                in_bin = (
+                    (X_valid[feature] >= lo) &
+                    (X_valid[feature] <= hi)
+                )
+
+                if in_bin.sum() == 0:
+                    local_effects.append(0.0)
+                    bin_centers.append((lo + hi) / 2.0)
+                    continue
+
+                X_lo = X_valid.copy()
+                X_hi = X_valid.copy()
+
+                X_lo.loc[in_bin, feature] = lo
+                X_hi.loc[in_bin, feature] = hi
+
+                preds_hi = safe_predict(model, X_hi, features)
+                preds_lo = safe_predict(model, X_lo, features)
+
+                diff = preds_hi - preds_lo
+
+                local_effect = (
+                    diff[in_bin.values].mean()
+                    if in_bin.sum() > 0 else 0.0
+                )
+
+                local_effects.append(local_effect)
                 bin_centers.append((lo + hi) / 2.0)
-                continue
 
-            X_lo = X_valid.copy()
-            X_hi = X_valid.copy()
+            ale = np.cumsum(local_effects)
 
-            X_lo.loc[in_bin, feature] = lo
-            X_hi.loc[in_bin, feature] = hi
+            # --------------------------------
+            # Centered ALE
+            # --------------------------------
+            ale = ale - np.mean(ale)
 
-            preds_hi = safe_predict(model, X_hi, features)
-            preds_lo = safe_predict(model, X_lo, features)
+            return np.array(bin_centers), ale
 
-            diff = preds_hi - preds_lo
+        def summarize_ale_intervals(bin_centers, ale_vals):
+            bc = np.array(bin_centers)
+            av = np.array(ale_vals)
+            deriv = np.gradient(av, bc)
+            thr = 1.5 * (np.std(deriv) + 1e-9)
+            steep_idx = np.where(np.abs(deriv) > thr)[0]
 
-            local_effect = (
-                diff[in_bin.values].mean()
-                if in_bin.sum() > 0 else 0.0
-            )
+            def contiguous_ranges(mask):
+                ranges = []
+                i = 0
+                while i < len(mask):
+                    if mask[i]:
+                        j = i
+                        while j < len(mask) and mask[j]:
+                            j += 1
+                        ranges.append((i, j - 1))
+                        i = j
+                    else:
+                        i += 1
+                return ranges
 
-            local_effects.append(local_effect)
-            bin_centers.append((lo + hi) / 2.0)
+            pos_ranges = contiguous_ranges(av > 0)
+            neg_ranges = contiguous_ranges(av < 0)
+            pos_intervals = [(float(bc[s]), float(bc[t]), float(np.mean(av[s:t + 1]))) for s, t in pos_ranges]
+            neg_intervals = [(float(bc[s]), float(bc[t]), float(np.mean(av[s:t + 1]))) for s, t in neg_ranges]
+            steep_points = [(int(i), float(bc[i]), float(deriv[i])) for i in steep_idx]
+            return {"pos_intervals": pos_intervals, "neg_intervals": neg_intervals, "steep_points": steep_points}
 
-        ale = np.cumsum(local_effects)
-
-        # --------------------------------
-        # Centered ALE
-        # --------------------------------
-        ale = ale - np.mean(ale)
-
-        return np.array(bin_centers), ale
-
-    def summarize_ale_intervals(bin_centers, ale_vals):
-        bc = np.array(bin_centers)
-        av = np.array(ale_vals)
-        deriv = np.gradient(av, bc)
-        thr = 1.5 * (np.std(deriv) + 1e-9)
-        steep_idx = np.where(np.abs(deriv) > thr)[0]
-
-        def contiguous_ranges(mask):
-            ranges = []
+        def find_top_contiguous_interval(x, y, top_frac=0.9, min_width=1):
+            thresh = np.quantile(y, top_frac)
+            mask = y >= thresh
+            segments = []
             i = 0
             while i < len(mask):
                 if mask[i]:
                     j = i
                     while j < len(mask) and mask[j]:
                         j += 1
-                    ranges.append((i, j - 1))
+                    if (j - i) >= min_width:
+                        segments.append((i, j - 1))
                     i = j
                 else:
                     i += 1
-            return ranges
+            if not segments:
+                idx = int(np.argmax(y))
+                left = max(0, idx - 1)
+                right = min(len(x) - 1, idx + 1)
+                return x[left], x[right], float(np.mean(y[left:right + 1])), float(np.max(y[left:right + 1]))
+            best = None
+            best_score = -1e9
+            for s, t in segments:
+                score = float(np.mean(y[s:t + 1]))
+                if score > best_score:
+                    best_score = score
+                    best = (s, t)
+            s, t = best
+            return x[s], x[t], float(np.mean(y[s:t + 1])), float(np.max(y[s:t + 1]))
 
-        pos_ranges = contiguous_ranges(av > 0)
-        neg_ranges = contiguous_ranges(av < 0)
-        pos_intervals = [(float(bc[s]), float(bc[t]), float(np.mean(av[s:t + 1]))) for s, t in pos_ranges]
-        neg_intervals = [(float(bc[s]), float(bc[t]), float(np.mean(av[s:t + 1]))) for s, t in neg_ranges]
-        steep_points = [(int(i), float(bc[i]), float(deriv[i])) for i in steep_idx]
-        return {"pos_intervals": pos_intervals, "neg_intervals": neg_intervals, "steep_points": steep_points}
+        def summarize_pdp(model, X, feature, grid_resolution=50):
+            col = X[feature]
+            x = np.linspace(col.min(), col.max(), grid_resolution)
+            y = []
+            Xbase = X.copy()
+            for val in x:
+                Xtmp = Xbase.copy()
+                Xtmp[feature] = val
+                preds = safe_predict(model, Xtmp, features)
+                y.append(np.mean(preds))
+            x = np.array(x)
+            y = np.array(y)
+            start, end, mean_y, max_y = find_top_contiguous_interval(x, y, top_frac=0.9)
+            return x, y, {"best_interval": (start, end), "mean_val": float(mean_y), "max_val": float(max_y)}
 
-    def find_top_contiguous_interval(x, y, top_frac=0.9, min_width=1):
-        thresh = np.quantile(y, top_frac)
-        mask = y >= thresh
-        segments = []
-        i = 0
-        while i < len(mask):
-            if mask[i]:
-                j = i
-                while j < len(mask) and mask[j]:
-                    j += 1
-                if (j - i) >= min_width:
-                    segments.append((i, j - 1))
-                i = j
-            else:
-                i += 1
-        if not segments:
-            idx = int(np.argmax(y))
-            left = max(0, idx - 1)
-            right = min(len(x) - 1, idx + 1)
-            return x[left], x[right], float(np.mean(y[left:right + 1])), float(np.max(y[left:right + 1]))
-        best = None
-        best_score = -1e9
-        for s, t in segments:
-            score = float(np.mean(y[s:t + 1]))
-            if score > best_score:
-                best_score = score
-                best = (s, t)
-        s, t = best
-        return x[s], x[t], float(np.mean(y[s:t + 1])), float(np.max(y[s:t + 1]))
-
-    def summarize_pdp(model, X, feature, grid_resolution=50):
-        col = X[feature]
-        x = np.linspace(col.min(), col.max(), grid_resolution)
-        y = []
-        Xbase = X.copy()
-        for val in x:
-            Xtmp = Xbase.copy()
-            Xtmp[feature] = val
-            preds = safe_predict(model, Xtmp, features)
-            y.append(np.mean(preds))
-        x = np.array(x)
-        y = np.array(y)
-        start, end, mean_y, max_y = find_top_contiguous_interval(x, y, top_frac=0.9)
-        return x, y, {"best_interval": (start, end), "mean_val": float(mean_y), "max_val": float(max_y)}
-
-    def summarize_ice_linear_slope(model, X, feature, n_samples=50):
-        Xs = X.sample(n=min(n_samples, len(X)), random_state=42)
-        xs = np.linspace(X[feature].min(), X[feature].max(), 30)
-        slopes = []
-        for _, row in Xs.iterrows():
-            Xtmp = pd.DataFrame(np.tile(row.values, (len(xs), 1)), columns=X.columns)
-            Xtmp[feature] = xs
-            preds = safe_predict(model, Xtmp, features)
-            lr = LinearRegression()
-            lr.fit(xs.reshape(-1, 1), preds)
-            slopes.append(lr.coef_[0])
-        slopes = np.array(slopes)
-        return float(np.mean(slopes)), float(np.std(slopes)), len(slopes)
-
-    col_ice_pdp, col_ale = st.columns(2)
-
-    with col_ice_pdp:
-
-        st.markdown("**ICE + PDP 통합 그래프 & 최적 구간**")
-
-        try:
-
-            Xs = X_test.sample(
-                n=min(n_samples, len(X_test)),
-                random_state=42
-            )
-
-            xs = np.linspace(
-                X_test[ice_feature].min(),
-                X_test[ice_feature].max(),
-                50
-            )
-
-            ice_curves_y = []
+        def summarize_ice_linear_slope(model, X, feature, n_samples=50):
+            Xs = X.sample(n=min(n_samples, len(X)), random_state=42)
+            xs = np.linspace(X[feature].min(), X[feature].max(), 30)
+            slopes = []
             for _, row in Xs.iterrows():
-                Xtmp = pd.DataFrame(
-                    np.tile(row.values, (len(xs), 1)),
-                    columns=X_test.columns
+                Xtmp = pd.DataFrame(np.tile(row.values, (len(xs), 1)), columns=X.columns)
+                Xtmp[feature] = xs
+                preds = safe_predict(model, Xtmp, features)
+                lr = LinearRegression()
+                lr.fit(xs.reshape(-1, 1), preds)
+                slopes.append(lr.coef_[0])
+            slopes = np.array(slopes)
+            return float(np.mean(slopes)), float(np.std(slopes)), len(slopes)
+
+        col_ice_pdp, col_ale = st.columns(2)
+
+        with col_ice_pdp:
+
+            st.markdown("**ICE + PDP 통합 그래프 & 최적 구간**")
+
+            try:
+
+                Xs = X_test.sample(
+                    n=min(n_samples, len(X_test)),
+                    random_state=42
                 )
-                Xtmp[ice_feature] = xs
-                ice_curves_y.append(safe_predict(model, Xtmp, features))
 
-            xvals, yvals, pdp_summary = summarize_pdp(
-                model,
-                X_test,
-                ice_feature,
-                grid_resolution=50
-            )
+                xs = np.linspace(
+                    X_test[ice_feature].min(),
+                    X_test[ice_feature].max(),
+                    50
+                )
 
-            fig_mix = fig_ice_pdp(
-                xs,
-                ice_curves_y,
-                xvals,
-                yvals,
-                pretty_time_text(ice_feature),
-                best_interval=pdp_summary.get("best_interval"),
-            )
-            display_matplotlib(fig_mix)
-            plt.close(fig_mix)
+                ice_curves_y = []
+                for _, row in Xs.iterrows():
+                    Xtmp = pd.DataFrame(
+                        np.tile(row.values, (len(xs), 1)),
+                        columns=X_test.columns
+                    )
+                    Xtmp[ice_feature] = xs
+                    ice_curves_y.append(safe_predict(model, Xtmp, features))
 
-            # 최적 구간
-            start, end = pdp_summary["best_interval"]
-
-            st.write(
-                f"예측대상({target_col})의 최적(예측이 큰) 구간: "
-                f"{start:.3f} ~ {end:.3f}"
-            )
-
-            st.write(
-                f"구간 평균 예측값: "
-                f"{pdp_summary['mean_val']:.3f}"
-            )
-
-            st.write(
-                f"구간 최대값: "
-                f"{pdp_summary['max_val']:.3f}"
-            )
-
-            ice_mean_slope, ice_std_slope, cnt = summarize_ice_linear_slope(
-                model,
-                X_test,
-                ice_feature,
-                n_samples=min(n_samples, len(X_test))
-            )
-
-            st.write(
-                f"ICE 평균 기울기: "
-                f"{ice_mean_slope:.4f} ± {ice_std_slope:.4f}"
-            )
-
-            ice_desc, pdp_desc, combined_desc = explain_ice_pdp_result(
-                ice_feature,
-                ice_mean_slope,
-                ice_std_slope,
-                pdp_summary,
-                target_col
-            )
-
-            st.markdown("**ICE 그래프 결과 설명**")
-            st.markdown(ice_desc, unsafe_allow_html=True)
-
-            st.markdown("**PDP 그래프 결과 설명**")
-            st.markdown(pdp_desc, unsafe_allow_html=True)
-
-            st.markdown("**ICE + PDP 전체 그래프 결과 설명**")
-            st.markdown(combined_desc, unsafe_allow_html=True)
-
-        except Exception as e:
-            st.error(f"ICE + PDP 처리 오류: {e}")
-
-
-
-    with col_ale:
-        st.markdown("**Centered ALE & 임계구간 탐지**")
-        try:
-            bin_centers, ale_vals = compute_centered_ale(model, X_test.reset_index(drop=True), ice_feature, bins=ale_bins)
-            ale_summary = summarize_ale_intervals(bin_centers, ale_vals)
-            fig_ale = fig_centered_ale(
-                bin_centers,
-                ale_vals,
-                pretty_time_text(ice_feature),
-                pos_intervals=ale_summary.get("pos_intervals"),
-                neg_intervals=ale_summary.get("neg_intervals"),
-            )
-            display_matplotlib(fig_ale)
-            plt.close(fig_ale)
-            if ale_summary["pos_intervals"]:
-                st.write("모델이 우호적으로 보는 구간(양의 ALE):")
-                for a, b, mv in ale_summary["pos_intervals"]:
-                    st.write(f"• {a:.2f} ~ {b:.2f} (평균 ALE: {mv:.3f})")
-            if ale_summary["neg_intervals"]:
-                st.write("모델이 불리하게 보는 구간(음의 ALE):")
-                for a, b, mv in ale_summary["neg_intervals"]:
-                    st.write(f"• {a:.2f} ~ {b:.2f} (평균 ALE: {mv:.3f})")
-
-            st.markdown("**Centered ALE 그래프 결과 설명**")
-            st.markdown(
-                f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_centered_ale_result(
+                xvals, yvals, pdp_summary = summarize_pdp(
+                    model,
+                    X_test,
                     ice_feature,
+                    grid_resolution=50
+                )
+
+                fig_mix = fig_ice_pdp(
+                    xs,
+                    ice_curves_y,
+                    xvals,
+                    yvals,
+                    pretty_time_text(ice_feature),
+                    best_interval=pdp_summary.get("best_interval"),
+                )
+                display_matplotlib(fig_mix)
+                plt.close(fig_mix)
+
+                # 최적 구간
+                start, end = pdp_summary["best_interval"]
+
+                st.write(
+                    f"예측대상({target_col})의 최적(예측이 큰) 구간: "
+                    f"{start:.3f} ~ {end:.3f}"
+                )
+
+                st.write(
+                    f"구간 평균 예측값: "
+                    f"{pdp_summary['mean_val']:.3f}"
+                )
+
+                st.write(
+                    f"구간 최대값: "
+                    f"{pdp_summary['max_val']:.3f}"
+                )
+
+                ice_mean_slope, ice_std_slope, cnt = summarize_ice_linear_slope(
+                    model,
+                    X_test,
+                    ice_feature,
+                    n_samples=min(n_samples, len(X_test))
+                )
+
+                st.write(
+                    f"ICE 평균 기울기: "
+                    f"{ice_mean_slope:.4f} ± {ice_std_slope:.4f}"
+                )
+
+                ice_desc, pdp_desc, combined_desc = explain_ice_pdp_result(
+                    ice_feature,
+                    ice_mean_slope,
+                    ice_std_slope,
+                    pdp_summary,
+                    target_col
+                )
+
+                st.markdown("**ICE 그래프 결과 설명**")
+                st.markdown(ice_desc, unsafe_allow_html=True)
+
+                st.markdown("**PDP 그래프 결과 설명**")
+                st.markdown(pdp_desc, unsafe_allow_html=True)
+
+                st.markdown("**ICE + PDP 전체 그래프 결과 설명**")
+                st.markdown(combined_desc, unsafe_allow_html=True)
+
+            except Exception as e:
+                st.error(f"ICE + PDP 처리 오류: {e}")
+
+
+
+        with col_ale:
+            st.markdown("**Centered ALE & 임계구간 탐지**")
+            try:
+                bin_centers, ale_vals = compute_centered_ale(model, X_test.reset_index(drop=True), ice_feature, bins=ale_bins)
+                ale_summary = summarize_ale_intervals(bin_centers, ale_vals)
+                fig_ale = fig_centered_ale(
                     bin_centers,
                     ale_vals,
-                    ale_summary,
-                    target_col
-                )}</div>""",
-                unsafe_allow_html=True
+                    pretty_time_text(ice_feature),
+                    pos_intervals=ale_summary.get("pos_intervals"),
+                    neg_intervals=ale_summary.get("neg_intervals"),
+                )
+                display_matplotlib(fig_ale)
+                plt.close(fig_ale)
+                if ale_summary["pos_intervals"]:
+                    st.write("모델이 우호적으로 보는 구간(양의 ALE):")
+                    for a, b, mv in ale_summary["pos_intervals"]:
+                        st.write(f"• {a:.2f} ~ {b:.2f} (평균 ALE: {mv:.3f})")
+                if ale_summary["neg_intervals"]:
+                    st.write("모델이 불리하게 보는 구간(음의 ALE):")
+                    for a, b, mv in ale_summary["neg_intervals"]:
+                        st.write(f"• {a:.2f} ~ {b:.2f} (평균 ALE: {mv:.3f})")
+
+                st.markdown("**Centered ALE 그래프 결과 설명**")
+                st.markdown(
+                    f"""<div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);padding:14px;border-radius:10px;line-height:1.8;font-size:16px">{explain_centered_ale_result(
+                        ice_feature,
+                        bin_centers,
+                        ale_vals,
+                        ale_summary,
+                        target_col
+                    )}</div>""",
+                    unsafe_allow_html=True
+                )
+            except Exception as e:
+                st.error(f"ALE 처리 오류: {e}")
+
+        st.markdown("## 9) 종합 리포트")
+
+        try:
+            comprehensive_report = generate_comprehensive_report(
+                model_choice=model_choice,
+                target_col=target_col,
+                metrics=metrics,
+                weekly_metrics_df=weekly_metrics_df,
+                shap_df=shap_df,
+                fi_df=fi_df,
+                week_importance=week_importance,
+                heatmap_df=heatmap_df,
+                cf_result=cf_result,
+                ice_feature=ice_feature if "ice_feature" in locals() else None,
+                ice_mean_slope=ice_mean_slope,
+                ice_std_slope=ice_std_slope,
+                pdp_summary=pdp_summary,
+                ale_summary=ale_summary,
+                bin_centers=bin_centers,
+                ale_vals=ale_vals,
             )
-        except Exception as e:
-            st.error(f"ALE 처리 오류: {e}")
 
-    st.markdown("## 9) 종합 리포트")
-
-    try:
-        comprehensive_report = generate_comprehensive_report(
-            model_choice=model_choice,
-            target_col=target_col,
-            metrics=metrics,
-            weekly_metrics_df=weekly_metrics_df,
-            shap_df=shap_df,
-            fi_df=fi_df,
-            week_importance=week_importance,
-            heatmap_df=heatmap_df,
-            cf_result=cf_result,
-            ice_feature=ice_feature if "ice_feature" in locals() else None,
-            ice_mean_slope=ice_mean_slope,
-            ice_std_slope=ice_std_slope,
-            pdp_summary=pdp_summary,
-            ale_summary=ale_summary,
-            bin_centers=bin_centers,
-            ale_vals=ale_vals,
-        )
-
-        st.markdown(
-            f"""
+            st.markdown(
+                f"""
     <div style="background:linear-gradient(135deg,#ffffff,#eef5ff); box-shadow:0 6px 20px rgba(0,0,0,0.05);
     padding:18px;
     border-radius:12px;
@@ -2820,17 +3726,15 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
     {comprehensive_report}
 
     </div>
-            """,
-            unsafe_allow_html=True
-        )
+                """,
+                unsafe_allow_html=True
+            )
 
-    except Exception as e:
-        st.warning(f"종합 리포트 생성 오류: {e}")
+        except Exception as e:
+            st.warning(f"종합 리포트 생성 오류: {e}")
 
-    st.success("통합 XAI 분석이 완료되었습니다.")
+        st.success("통합 XAI 분석이 완료되었습니다.")
 
 
-# streamlit run app.py → __main__ / import app → "app" (UI는 main에서만 1회 실행)
-if __name__ == "__main__" and os.environ.get("PAI_APP_MODE") != "mobile":
-    from dims_ui import run_desktop_ui
-    run_desktop_ui(_render_advanced_xai_analysis)
+if os.environ.get("PAI_APP_MODE") != "mobile":
+    _run_desktop_ui()
