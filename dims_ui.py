@@ -1287,6 +1287,37 @@ def build_growth_chart_df(
 
 GROWTH_CHART_PRIMARY = ["착과수", "초장", "엽수", "수확수"]
 GROWTH_CHART_EXTRA = ["생장길이", "엽장", "엽폭", "줄기굵기", "화방높이"]
+MAIN_TAB_LABELS = ["1 데이터", "2 현황", "3 생육 흐름", "4 예측"]
+MAIN_TAB_STATUS = 1
+
+
+def _focus_main_tab(tab_index: int):
+    """메인 탭 바에서 지정 인덱스 탭으로 이동."""
+    import streamlit.components.v1 as components
+
+    idx = max(0, min(tab_index, len(MAIN_TAB_LABELS) - 1))
+    components.html(
+        f"""
+        <script>
+        (function() {{
+          const go = () => {{
+            const doc = window.parent.document;
+            const lists = doc.querySelectorAll('[data-testid="stTabs"] [data-baseweb="tab-list"]');
+            if (!lists.length) return false;
+            const buttons = lists[0].querySelectorAll('button[data-baseweb="tab"]');
+            const target = buttons[{idx}];
+            if (!target) return false;
+            if (target.getAttribute('aria-selected') !== 'true') target.click();
+            window.parent.scrollTo({{ top: 0, behavior: 'smooth' }});
+            return true;
+          }};
+          if (!go()) setTimeout(go, 120);
+        }})();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
 
 
 def render_growth_timeseries_section(df, date_col: str = "조사일자", key_prefix: str = "growth"):
@@ -1366,9 +1397,7 @@ def run_desktop_ui(render_xai_fn):
 
     render_dims_header(st.session_state.get("dims_asof", "—"))
 
-    tab_data, tab_now, tab_series, tab_forecast = st.tabs(
-        ["1 데이터", "2 현황", "3 생육 흐름", "4 예측"]
-    )
+    tab_data, tab_now, tab_series, tab_forecast = st.tabs(MAIN_TAB_LABELS)
 
     sensor_file = yield_file = None
     crop_name = st.session_state.get("dims_crop", "토마토")
@@ -1572,6 +1601,7 @@ def run_desktop_ui(render_xai_fn):
             if run:
                 st.session_state.dims_ready = True
                 st.session_state.dims_show_complete_msg = True
+                st.session_state.dims_goto_tab = MAIN_TAB_STATUS
         st.markdown("</div>", unsafe_allow_html=True)
 
     if not has_data:
@@ -1773,5 +1803,9 @@ def run_desktop_ui(render_xai_fn):
             yield_df=yield_df,
             date_col_yield=date_col_yield,
         )
+
+    goto_tab = st.session_state.pop("dims_goto_tab", None)
+    if goto_tab is not None:
+        _focus_main_tab(int(goto_tab))
 
     render_disclaimer()
