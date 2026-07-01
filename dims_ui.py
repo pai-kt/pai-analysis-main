@@ -1,4 +1,4 @@
-"""A-DIMS desktop UI — HTML 인터페이스(v0.04) 구조."""
+"""의사결정지원시스템 desktop UI — HTML 인터페이스(v0.04) 구조."""
 from __future__ import annotations
 
 import html
@@ -8,6 +8,9 @@ import numpy as np
 import plotly.graph_objects as go
 
 import column_mapping as colmap
+
+APP_TITLE = "의사결정지원시스템"
+APP_SUBTITLE = "시설원예 생육·환경 데이터 기반 분석·예측"
 
 ADIMS_CSS = """
 <style>
@@ -61,9 +64,12 @@ section[data-testid="stMain"]{overflow:unset!important;}
   position:relative;
   z-index:1;
 }
-.dims-brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;color:var(--ink);}
-.dims-brand .dot{width:10px;height:10px;border-radius:3px;background:var(--accent);display:inline-block;}
-.dims-asof{font-size:12px;color:var(--ink-3);text-align:right;}
+.dims-brand{display:flex;align-items:center;gap:10px;}
+.dims-brand .dot{width:10px;height:10px;border-radius:3px;background:var(--accent);display:inline-block;flex-shrink:0;}
+.dims-brand-text{display:flex;flex-direction:column;gap:1px;min-width:0;}
+.dims-brand-title{font-weight:700;font-size:16px;letter-spacing:-.3px;color:var(--ink);line-height:1.25;}
+.dims-brand-sub{font-size:12px;font-weight:500;color:var(--ink-3);letter-spacing:-.1px;line-height:1.35;}
+.dims-asof{font-size:12px;color:var(--ink-3);text-align:right;flex-shrink:0;}
 .dims-asof b{color:var(--ink-2);font-weight:600;}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);}
 .eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase;margin:26px 0 12px;display:flex;align-items:center;gap:8px;}
@@ -172,15 +178,27 @@ def _clamp(x, a, b):
     return max(a, min(b, x))
 
 
-def render_dims_header(asof_date: str):
+def render_dims_header(asof_date: str, subtitle: str | None = None):
+    sub = subtitle if subtitle is not None else APP_SUBTITLE
+    sub_html = (
+        f'<div class="dims-brand-sub">{html.escape(sub)}</div>'
+        if sub
+        else ""
+    )
     st.markdown('<div class="dims-top-spacer" aria-hidden="true"></div>', unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class="dims-header">
           <div style="display:flex;align-items:center;gap:16px;">
-            <div class="dims-brand"><span class="dot"></span>A-DIMS</div>
+            <div class="dims-brand">
+              <span class="dot"></span>
+              <div class="dims-brand-text">
+                <div class="dims-brand-title">{html.escape(APP_TITLE)}</div>
+                {sub_html}
+              </div>
+            </div>
             <div style="flex:1"></div>
-            <div class="dims-asof">최종 조사 <b>{asof_date}</b></div>
+            <div class="dims-asof">최종 조사 <b>{html.escape(str(asof_date))}</b></div>
           </div>
         </div>
         """,
@@ -265,6 +283,215 @@ def render_gauge_strip(kpis: list[dict]):
         </div>""")
     parts.append("</section>")
     st.markdown("".join(parts), unsafe_allow_html=True)
+
+
+def _status_from_opt_range(val: float, opt_lo: float, opt_hi: float, env_key: str = "") -> tuple[str, str]:
+    if opt_lo <= val <= opt_hi:
+        return "ok", "적정"
+    if val > opt_hi:
+        status = "risk" if env_key == "야간습도" else "warn"
+        return status, "높음"
+    return "warn", "낮음"
+
+
+def build_env_kpis_from_measures(measures: dict[str, float]) -> list[dict]:
+    specs = [
+        ("야간 습도", "야간습도", "%", 40, 100, 60, 80),
+        ("한낮 일사량", "일사량", "", 0, 2500, 1200, 2000),
+        ("주간 온도", "주간온도", "℃", 15, 30, 20, 24),
+        ("야간 온도", "야간온도", "℃", 10, 25, 15, 18),
+        ("주간 습도", "주간습도", "%", 40, 100, 60, 80),
+    ]
+    kpis = []
+    for name, key, unit, vmin, vmax, opt_lo, opt_hi in specs:
+        val = measures.get(key)
+        if val is None or (isinstance(val, float) and np.isnan(val)):
+            continue
+        status, label = _status_from_opt_range(float(val), opt_lo, opt_hi, key)
+        kpis.append({
+            "name": name, "unit": unit, "val": float(val), "status": status, "label": label,
+            "min": vmin, "max": vmax, "optLo": opt_lo, "optHi": opt_hi,
+        })
+    return kpis
+
+
+def build_recent_env_measures(
+    sensor_df,
+    date_col: str,
+    temp_col: str,
+    hum_col: str | None,
+    solar_col: str | None,
+    days: int = 7,
+) -> dict[str, float]:
+    from rda_standards import build_rda_recent_actuals
+
+    measures = build_rda_recent_actuals(sensor_df, date_col, temp_col, solar_col, days=days)
+    if sensor_df is None or hum_col is None or hum_col not in sensor_df.columns:
+        return measures
+    tmp = sensor_df[[date_col, hum_col]].copy()
+    tmp[date_col] = pd.to_datetime(tmp[date_col], errors="coerce")
+    tmp[hum_col] = pd.to_numeric(tmp[hum_col], errors="coerce")
+    tmp = tmp.dropna()
+    if tmp.empty:
+        return measures
+    tmp["hour"] = tmp[date_col].dt.hour
+    latest_date = tmp[date_col].max()
+    start = pd.Timestamp(latest_date.date()) - pd.Timedelta(days=days - 1)
+    subset = tmp[tmp[date_col] >= start]
+    day = subset[(subset["hour"] >= 8) & (subset["hour"] <= 18)]
+    night = subset[(subset["hour"] >= 19) | (subset["hour"] <= 7)]
+    if not day[hum_col].empty:
+        measures["주간습도"] = float(day[hum_col].mean())
+    if not night[hum_col].empty:
+        measures["야간습도"] = float(night[hum_col].mean())
+    return measures
+
+
+def _calc_vpd_kpa(temp_c: float, rh_pct: float) -> float:
+    svp = 0.6108 * np.exp(17.27 * temp_c / (temp_c + 237.3))
+    return float(svp * (1.0 - rh_pct / 100.0))
+
+
+def build_control_quality_from_sensor(
+    sensor_df,
+    date_col: str,
+    temp_col: str,
+    hum_col: str | None,
+    days: int = 7,
+) -> dict | None:
+    if sensor_df is None or not date_col or not temp_col or not hum_col:
+        return None
+    if hum_col not in sensor_df.columns or temp_col not in sensor_df.columns:
+        return None
+    tmp = sensor_df[[date_col, temp_col, hum_col]].copy()
+    tmp[date_col] = pd.to_datetime(tmp[date_col], errors="coerce")
+    tmp[temp_col] = pd.to_numeric(tmp[temp_col], errors="coerce")
+    tmp[hum_col] = pd.to_numeric(tmp[hum_col], errors="coerce")
+    tmp = tmp.dropna()
+    if tmp.empty:
+        return None
+    tmp["hour"] = tmp[date_col].dt.hour
+    tmp["date"] = tmp[date_col].dt.date
+    latest_date = tmp["date"].max()
+    start = pd.Timestamp(latest_date) - pd.Timedelta(days=days - 1)
+    subset = tmp[tmp[date_col] >= start]
+    if subset.empty:
+        return None
+
+    night = subset[(subset["hour"] >= 19) | (subset["hour"] <= 7)]
+    day = subset[(subset["hour"] >= 8) & (subset["hour"] <= 18)]
+
+    night_hum_oos_pct = None
+    night_vpd = None
+    if not night.empty:
+        out = (night[hum_col] > 80) | (night[hum_col] < 60)
+        night_hum_oos_pct = float(out.mean() * 100)
+        night_vpd = float(night.apply(lambda r: _calc_vpd_kpa(r[temp_col], r[hum_col]), axis=1).mean())
+
+    swing_days = 0
+    if not day.empty:
+        daily = day.groupby("date")[temp_col].agg(["min", "max"])
+        swing_days = int((daily["max"] - daily["min"] > 5).sum())
+
+    return {
+        "night_hum_oos_pct": night_hum_oos_pct,
+        "night_vpd": night_vpd,
+        "day_temp_swing_days": swing_days,
+        "days": days,
+    }
+
+
+def render_control_quality_stats(stats: dict):
+    oos = stats.get("night_hum_oos_pct")
+    vpd = stats.get("night_vpd")
+    swings = stats.get("day_temp_swing_days", 0)
+    days = stats.get("days", 7)
+
+    if oos is None and vpd is None:
+        return
+
+    if oos is not None:
+        oos_status = "risk" if oos >= 50 else ("warn" if oos >= 30 else "ok")
+        oos_label = "주의" if oos_status == "risk" else ("보통" if oos_status == "warn" else "양호")
+        oos_color = "var(--risk)" if oos_status == "risk" else ("var(--warn)" if oos_status == "warn" else "var(--ok)")
+    else:
+        oos_status, oos_label, oos_color = "ok", "—", "var(--ink)"
+
+    if vpd is not None:
+        vpd_status = "ok" if 0.6 <= vpd <= 1.2 else "warn"
+        vpd_label = "적정" if vpd_status == "ok" else ("낮음" if vpd < 0.6 else "높음")
+        vpd_color = "var(--ok)" if vpd_status == "ok" else "var(--warn)"
+        vpd_note = "적정 0.6~1.2" + (" · 다습으로 다소 낮음" if vpd < 0.6 else (" · 건조" if vpd > 1.2 else ""))
+    else:
+        vpd_status, vpd_label, vpd_color, vpd_note = "ok", "—", "var(--ink)", "—"
+
+    swing_status = "warn" if swings >= 3 else "ok"
+    swing_label = "보통" if swing_status == "warn" else "양호"
+    swing_color = "var(--warn)" if swing_status == "warn" else "var(--ok)"
+
+    oos_val = f"{oos:.0f}" if oos is not None else "—"
+    vpd_val = f"{vpd:.1f}" if vpd is not None else "—"
+
+    st.markdown(
+        f"""
+        <div class="stat-row">
+          <div class="stat">
+            <div class="sl">적정 이탈 시간 <span class="badge {oos_status}">{oos_label}</span></div>
+            <div class="sv" style="color:{oos_color};">{oos_val}<span style="font-size:13px;color:var(--ink-3);font-weight:600">%</span></div>
+            <div class="sx">야간습도가 적정(60~80%)을 벗어난 시간 비율</div>
+          </div>
+          <div class="stat">
+            <div class="sl">야간 VPD <span class="badge {vpd_status}">{vpd_label}</span></div>
+            <div class="sv" style="color:{vpd_color};">{vpd_val}<span style="font-size:13px;color:var(--ink-3);font-weight:600"> kPa</span></div>
+            <div class="sx">{vpd_note}</div>
+          </div>
+          <div class="stat">
+            <div class="sl">환경 안정성 <span class="badge {swing_status}">{swing_label}</span></div>
+            <div class="sv" style="color:{swing_color};">{swings}<span style="font-size:13px;color:var(--ink-3);font-weight:600"> 회</span></div>
+            <div class="sx">주간온도 급변 횟수(일교차 5℃ 초과 일수)</div>
+          </div>
+        </div>
+        <p class="subnote">※ 최근 {days}일 기준. 한 시점 값이 아니라 ‘얼마나 오래·안정적으로 적정을 유지했는가’를 봅니다. VPD는 수증기압차로, 토마토 제어 품질의 핵심 지표입니다.</p>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_env_detail_section(
+    kpis: list[dict] | None,
+    sensor_df=None,
+    date_col: str | None = None,
+    temp_col: str | None = None,
+    hum_col: str | None = None,
+    expanded: bool = False,
+    context_note: str | None = None,
+):
+    """현황 탭과 동일 — 지금 값·적정 구간·제어 품질."""
+    with st.expander("환경 상세 — 지금 값·적정 구간·제어 품질", expanded=expanded):
+        st.markdown(
+            '<div class="eyebrow" style="margin-top:4px;">Now · <span class="ko">지금 환경 상태 — 지금 값(●)과 적정 구간(초록)</span></div>',
+            unsafe_allow_html=True,
+        )
+        if kpis:
+            render_gauge_strip(kpis)
+        else:
+            st.info("환경센서 데이터 업로드 후 「분석 결과 보기」를 실행하면 지금 환경 상태를 확인할 수 있습니다.")
+
+        note = context_note or (
+            "※ 적정 구간은 작기 전체 기준입니다. "
+            "<b style=\"color:var(--ink-2)\">농진청 표준 조회</b> 결과와 함께 현재 생육단계 목표 환경을 확인하세요."
+        )
+        st.markdown(f'<p class="subnote">{note}</p>', unsafe_allow_html=True)
+
+        st.markdown(
+            '<div class="eyebrow">Control · <span class="ko">환경 제어가 잘 되고 있나 (최근 7일)</span></div>',
+            unsafe_allow_html=True,
+        )
+        control = build_control_quality_from_sensor(sensor_df, date_col, temp_col, hum_col)
+        if control:
+            render_control_quality_stats(control)
+        else:
+            st.caption("온도·습도 센서 데이터가 있으면 최근 7일 제어 품질을 함께 표시합니다.")
 
 
 def render_action_item(rank, title, why, desc, status, color):
@@ -391,13 +618,131 @@ def render_rda_compare_table(match_row: pd.Series, actuals: dict[str, float] | N
         )
 
 
+def _parse_geolocation(location) -> dict | None:
+    """streamlit_geolocation 반환값 정규화 (dict / JSON str / None)."""
+    if location is None:
+        return None
+    if isinstance(location, dict):
+        return location
+    if isinstance(location, str):
+        text = location.strip()
+        if not text:
+            return None
+        import ast
+        import json
+
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            try:
+                parsed = ast.literal_eval(text)
+            except (ValueError, SyntaxError):
+                return None
+        if isinstance(parsed, dict):
+            return parsed
+        return None
+    return None
+
+
+def _sync_gps_outdoor_temp() -> tuple[float | None, str | None]:
+    """브라우저 GPS → Open-Meteo 현재 기온. session_state에 캐시."""
+    from geo_weather import fetch_current_temperature, reverse_geocode_label
+    from streamlit_geolocation import streamlit_geolocation
+
+    location = _parse_geolocation(streamlit_geolocation())
+    if not location or location.get("latitude") is None or location.get("longitude") is None:
+        return st.session_state.get("rda_gps_temp"), st.session_state.get("rda_gps_label")
+
+    lat = float(location["latitude"])
+    lon = float(location["longitude"])
+    coords = (round(lat, 5), round(lon, 5))
+
+    if st.session_state.get("rda_gps_coords") == coords:
+        return st.session_state.get("rda_gps_temp"), st.session_state.get("rda_gps_label")
+
+    temp = fetch_current_temperature(lat, lon)
+    label = reverse_geocode_label(lat, lon)
+    st.session_state.rda_gps_coords = coords
+    st.session_state.rda_gps_temp = temp
+    st.session_state.rda_gps_label = label
+
+    if temp is not None:
+        _apply_rda_outdoor_temp(temp, label)
+
+    return temp, label
+
+
+def _apply_rda_outdoor_temp(temp: float | None, label: str | None) -> None:
+    st.session_state.rda_outdoor_temp = temp
+    st.session_state.rda_outdoor_label = label
+    st.session_state.rda_gps_temp = temp
+    st.session_state.rda_gps_label = label
+    if temp is not None:
+        outdoor_str = f"{temp:.1f}"
+        for kind in ("solar", "growth"):
+            st.session_state[f"rda_outdoor_{kind}"] = outdoor_str
+
+
+def render_rda_outdoor_location() -> tuple[float | None, str | None]:
+    """GPS 또는 시·도/시·군·구 선택으로 외기기온 조회."""
+    from geo_weather import fetch_outdoor_temp_for_region
+    from korea_regions import list_sido, list_sigungu
+
+    st.markdown(
+        '<div class="eyebrow" style="margin-top:4px;">Location · <span class="ko">외기기온 위치</span></div>',
+        unsafe_allow_html=True,
+    )
+
+    mode = st.radio(
+        "외기기온 입력 방식",
+        ["GPS 현재 위치", "지역 직접 선택"],
+        horizontal=True,
+        key="rda_loc_mode",
+    )
+
+    if mode == "GPS 현재 위치":
+        gps_temp, gps_label = _sync_gps_outdoor_temp()
+        if gps_temp is not None and gps_label:
+            st.success(f"📍 현재 위치 **{gps_label}** · 외기기온 **{gps_temp:.1f}°C** (GPS 기준)")
+        else:
+            st.info("📍 브라우저에서 **위치 접근을 허용**하면 현재 위치의 외기기온을 자동으로 불러옵니다.")
+        return gps_temp, gps_label
+
+    sidos = list_sido()
+    c1, c2 = st.columns(2)
+    with c1:
+        sido = st.selectbox("시·도", sidos, key="rda_manual_sido")
+    sigungu_options = list_sigungu(sido)
+    with c2:
+        sigungu = st.selectbox(
+            "시·군·구",
+            sigungu_options,
+            key=f"rda_manual_sigungu_{sido}",
+        )
+
+    temp, label = fetch_outdoor_temp_for_region(sido, sigungu)
+    if temp is not None and label:
+        _apply_rda_outdoor_temp(temp, label)
+        st.success(f"📍 **{label}** · 외기기온 **{temp:.1f}°C** (선택 지역 기준)")
+    else:
+        st.warning("선택한 지역의 기온을 불러오지 못했습니다. 다른 지역을 선택해 보세요.")
+    return temp, label
+
+
+def render_rda_gps_location() -> tuple[float | None, str | None]:
+    """하위 호환 alias."""
+    return render_rda_outdoor_location()
+
+
 def render_rda_flow_tab(
     sensor_df=None,
     date_col_sensor=None,
     temp_col=None,
+    hum_col=None,
     solar_col=None,
     yield_df=None,
     date_col_yield=None,
+    env_kpis: list[dict] | None = None,
 ):
     from rda_standards import (
         RDA_STAGES_SOLAR,
@@ -419,6 +764,8 @@ def render_rda_flow_tab(
         unsafe_allow_html=True,
     )
 
+    gps_temp, gps_label = render_rda_outdoor_location()
+
     default_stage = "생육중기(3~6월)"
     if yield_df is not None and date_col_yield and date_col_yield in yield_df.columns:
         dates = pd.to_datetime(yield_df[date_col_yield], errors="coerce").dropna()
@@ -426,12 +773,20 @@ def render_rda_flow_tab(
             default_stage = infer_stage_from_month(int(dates.max().month))
 
     default_solar = None
-    default_outdoor = None
+    default_outdoor = gps_temp or st.session_state.get("rda_outdoor_temp")
+    if default_outdoor is None and sensor_df is not None and date_col_sensor:
+        if temp_col:
+            default_outdoor = estimate_outdoor_temp(sensor_df, date_col_sensor, temp_col)
+
+    outdoor_prefill = f"{default_outdoor:.1f}" if default_outdoor is not None else ""
+    for kind in ("solar", "growth"):
+        key = f"rda_outdoor_{kind}"
+        if key not in st.session_state:
+            st.session_state[key] = outdoor_prefill
+
     if sensor_df is not None and date_col_sensor:
         if solar_col:
             default_solar = estimate_cumulative_solar(sensor_df, date_col_sensor, solar_col)
-        if temp_col:
-            default_outdoor = estimate_outdoor_temp(sensor_df, date_col_sensor, temp_col)
 
     sub_solar, sub_growth = st.tabs(["일사량별 최적환경", "생육상태별 최적생산량"])
 
@@ -464,9 +819,9 @@ def render_rda_flow_tab(
             with c2:
                 outdoor_str = st.text_input(
                     "외기기온 (℃)",
-                    value=f"{default_outdoor:.1f}" if default_outdoor else "",
                     placeholder="예: 18.0",
                     key=f"rda_outdoor_{kind}",
+                    help="GPS 또는 선택 지역 기온이 자동 입력됩니다. 필요하면 직접 수정할 수 있습니다.",
                 )
             with c3:
                 st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
@@ -510,9 +865,15 @@ def render_rda_flow_tab(
             view = format_display_table(shown, display_cols)
             st.markdown(f'<div class="eyebrow">Result · <span class="ko">{title}</span></div>', unsafe_allow_html=True)
             if default_solar and not search:
+                loc_label = st.session_state.get("rda_outdoor_label") or gps_label
+                loc_temp = gps_temp or st.session_state.get("rda_outdoor_temp")
+                outdoor_note = (
+                    f"외기기온: **{loc_temp:.1f}°C** ({loc_label})"
+                    if loc_temp is not None and loc_label
+                    else "외기기온: 위치 미확인 — 온실 내부 온도로 대용 추정 가능"
+                )
                 st.caption(
-                    f"센서 데이터 기준 최근 7일 일별 누적일사량 최댓값 중 최댓값: **{default_solar:,.0f}** J/㎠/day "
-                    f"(외기기온 센서 없음 — 온실 내부 온도로 대용 추정 가능)"
+                    f"센서 데이터 기준 최근 7일 일별 누적일사량 최댓값 중 최댓값: **{default_solar:,.0f}** J/㎠/day · {outdoor_note}"
                 )
             if not view.empty:
                 highlight = match_group_idx if search else None
@@ -527,6 +888,23 @@ def render_rda_flow_tab(
                     solar_override=solar_q,
                 )
                 render_rda_compare_table(aggregated_rec, rda_actuals)
+
+    rda_kpis = env_kpis
+    if not rda_kpis and sensor_df is not None and date_col_sensor and temp_col:
+        measures = build_recent_env_measures(
+            sensor_df, date_col_sensor, temp_col, hum_col, solar_col
+        )
+        if measures:
+            rda_kpis = build_env_kpis_from_measures(measures)
+
+    render_env_detail_section(
+        rda_kpis,
+        sensor_df=sensor_df,
+        date_col=date_col_sensor,
+        temp_col=temp_col,
+        hum_col=hum_col,
+        expanded=True,
+    )
 
     st.markdown('<div class="tab-bottom-spacer"></div>', unsafe_allow_html=True)
 
@@ -779,6 +1157,7 @@ def run_desktop_ui(render_xai_fn):
                 sensor_df=sensor_df,
                 date_col_sensor=date_col_sensor,
                 temp_col=temp_col,
+                hum_col=hum_col,
                 solar_col=solar_col,
                 yield_df=yield_df,
                 date_col_yield=date_col_yield,
@@ -792,6 +1171,7 @@ def run_desktop_ui(render_xai_fn):
 
     measures: dict[str, float] = {}
     dims_ready = st.session_state.dims_ready
+    env_kpis_for_rda: list[dict] | None = None
 
     if dims_ready and st.session_state.pop("dims_show_complete_msg", False):
         st.success("분석이 완료되었습니다. 결과를 확인하세요.")
@@ -801,6 +1181,7 @@ def run_desktop_ui(render_xai_fn):
             st.info("데이터 탭에서 매핑을 확인한 뒤 「분석 결과 보기」를 눌러주세요.")
     else:
         kpis = build_env_kpis_from_row(latest, selected_week, core) if latest is not None else []
+        env_kpis_for_rda = kpis
         risk_kpis = [k for k in kpis if k["status"] != "ok"]
         if latest is not None:
             w = selected_week
@@ -884,9 +1265,18 @@ def run_desktop_ui(render_xai_fn):
             else:
                 st.success("현재 측정값 기준 긴급 조치 항목이 없습니다.")
 
-            with st.expander("환경 상세 — 지금 값·적정 구간·제어 품질"):
-                st.markdown('<div class="eyebrow" style="margin-top:4px;">Now · <span class="ko">지금 환경 상태</span></div>', unsafe_allow_html=True)
-                render_gauge_strip(kpis)
+            render_env_detail_section(
+                kpis,
+                sensor_df=sensor_df,
+                date_col=date_col_sensor,
+                temp_col=temp_col,
+                hum_col=hum_col,
+                expanded=False,
+                context_note=(
+                    "※ 적정 구간은 작기 전체 기준입니다. "
+                    "<b style=\"color:var(--ink-2)\">현재 생육단계 기준 목표 환경</b>은 ‘생육 흐름’·‘생육 흐름 (농진청)’ 탭에서 확인하세요."
+                ),
+            )
 
         with tab_series:
             st.markdown('<div class="eyebrow">Stage · <span class="ko">생육단계</span></div>', unsafe_allow_html=True)
@@ -941,9 +1331,11 @@ def run_desktop_ui(render_xai_fn):
             sensor_df=sensor_df,
             date_col_sensor=date_col_sensor,
             temp_col=temp_col,
+            hum_col=hum_col,
             solar_col=solar_col,
             yield_df=yield_df,
             date_col_yield=date_col_yield,
+            env_kpis=env_kpis_for_rda,
         )
 
     render_disclaimer()

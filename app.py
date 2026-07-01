@@ -41,7 +41,7 @@ plt.rcParams["axes.unicode_minus"] = False
 plt.rcParams['axes.unicode_minus'] = False
 
 if os.environ.get("PAI_APP_MODE") != "mobile":
-    st.set_page_config(page_title="A-DIMS · 토마토 대시보드", layout="wide")
+    st.set_page_config(page_title="의사결정지원시스템 · 토마토 대시보드", layout="wide")
 
 # 그래프·표 기본 설정 (고정)
 graph_theme = "기본"
