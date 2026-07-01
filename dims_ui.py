@@ -2,6 +2,9 @@
 from __future__ import annotations
 
 import html
+import os
+from pathlib import Path
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -11,6 +14,10 @@ import column_mapping as colmap
 
 APP_TITLE = "의사결정지원시스템"
 APP_SUBTITLE = "시설원예 생육·환경 데이터 기반 분석·예측"
+DIMS_SAMPLE_DIR = Path(__file__).resolve().parent / "sample_data"
+DEFAULT_SENSOR_FILE = DIMS_SAMPLE_DIR / "outdoor.indoor_sensor_20260622.csv"
+DEFAULT_YIELD_FILE = DIMS_SAMPLE_DIR / "2026-06-22T06-50_export_생육수확통합.csv"
+DIMS_SECURITY_KEY = os.environ.get("DIMS_SECURITY_KEY", "abcd")
 
 ADIMS_CSS = """
 <style>
@@ -71,26 +78,38 @@ section[data-testid="stMain"]{overflow:unset!important;}
 .dims-brand-sub{font-size:12px;font-weight:500;color:var(--ink-3);letter-spacing:-.1px;line-height:1.35;}
 .dims-asof{font-size:12px;color:var(--ink-3);text-align:right;flex-shrink:0;}
 .dims-asof b{color:var(--ink-2);font-weight:600;}
-.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:4px;}
+.hero-cols [data-testid="stHorizontalBlock"]{gap:1.5rem!important;margin-top:20px!important;align-items:stretch!important;}
+.hero-cols [data-testid="column"]{display:flex!important;flex-direction:column!important;}
+.hero-cols [data-testid="column"] > div{width:100%!important;flex:1!important;display:flex!important;flex-direction:column!important;}
+.hero-cols [data-testid="column"] [data-testid="stMarkdown"]{flex:1!important;display:flex!important;flex-direction:column!important;}
+.hero-cols [data-testid="column"] [data-testid="stMarkdown"] > div{width:100%!important;flex:1!important;display:flex!important;flex-direction:column!important;}
+.hero-cols [data-testid="stPlotlyChart"]{margin-top:8px;}
+.hero-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:24px;margin-top:20px;align-items:stretch;}
+@media(max-width:880px){.hero-grid{grid-template-columns:1fr;}}
+.growth-card,.verdict-card{
+  padding:24px 26px;position:relative;overflow:hidden;margin-bottom:12px;
+  height:100%;min-height:100%;box-sizing:border-box;
+  display:flex;flex-direction:column;
+}
+.growth-card .card-body,.verdict-card .card-body{flex:1;}
+.growth-card::before,.verdict-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;}
+.growth-card::before{background:var(--accent);}
+.verdict-card::before{background:var(--warn);}
+.chart-grid [data-testid="stHorizontalBlock"]{gap:1.25rem!important;margin-bottom:1rem!important;}
 .eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase;margin:26px 0 12px;display:flex;align-items:center;gap:8px;}
 .eyebrow .ko{font-size:13px;letter-spacing:-.1px;color:var(--ink);text-transform:none;font-weight:700;}
 .data-head h1{font-size:22px;font-weight:700;letter-spacing:-.5px;color:var(--ink)!important;margin:0;}
 .data-head p{color:var(--ink-2);font-size:13.5px;margin-top:5px;}
-.triage{display:flex;gap:12px;align-items:center;margin-top:16px;padding:14px 18px;background:var(--risk-bg);border-radius:12px;border-left:4px solid var(--risk);}
+.triage{display:flex;gap:12px;align-items:center;margin-top:16px;margin-bottom:4px;padding:14px 18px;background:var(--risk-bg);border-radius:12px;border-left:4px solid var(--risk);}
 .triage.warn{background:var(--warn-bg);border-left-color:var(--warn);}
 .triage .tt{font-size:13.5px;color:var(--ink);font-weight:600;line-height:1.5;}
 .triage .tt b{color:var(--risk);}
 .triage.warn .tt b{color:var(--warn);}
-.hero-grid{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-top:16px;}
-@media(max-width:880px){.hero-grid{grid-template-columns:1fr;}}
-.growth-card,.verdict-card{padding:24px 26px;position:relative;overflow:hidden;}
-.growth-card::before,.verdict-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;}
-.growth-card::before{background:var(--accent);}
-.verdict-card::before{background:var(--warn);}
 .pill{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:14px;padding:7px 14px;border-radius:999px;background:var(--warn-bg);color:var(--warn);}
 .pill.acc{background:var(--accent-bg);color:var(--accent);}
 .pill .bead{width:9px;height:9px;border-radius:50%;background:currentColor;box-shadow:0 0 0 4px color-mix(in srgb,currentColor 18%,transparent);}
-.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px;}
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:20px;}
 @media(max-width:880px){.stat-row{grid-template-columns:1fr;}}
 .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 17px;box-shadow:var(--shadow);}
 .stat .sl{font-size:11px;color:var(--ink-3);font-weight:600;}
@@ -106,9 +125,9 @@ section[data-testid="stMain"]{overflow:unset!important;}
 .act-body .h{font-size:14.5px;font-weight:700;color:var(--ink);}
 .act-body .d{font-size:13px;color:var(--ink-2);margin-top:3px;}
 .act-right .imp{font-size:15px;font-weight:700;}
-.strip{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.strip{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
 @media(max-width:880px){.strip{grid-template-columns:1fr;}}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 16px;box-shadow:var(--shadow);}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 16px;box-shadow:var(--shadow);margin-bottom:4px;}
 .kpi-name{font-size:12.5px;font-weight:600;color:var(--ink-2);}
 .badge{font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;display:inline-block;}
 .badge.ok{color:var(--ok);background:var(--ok-bg)} .badge.warn{color:var(--warn);background:var(--warn-bg)} .badge.risk{color:var(--risk);background:var(--risk-bg)}
@@ -131,7 +150,7 @@ section[data-testid="stMain"]{overflow:unset!important;}
 .rda-result-scroll .rda-result-tbl td{white-space:nowrap;}
 .judge.ok{color:var(--ok);font-weight:700} .judge.warn{color:var(--warn);font-weight:700} .judge.risk{color:var(--risk);font-weight:700}
 .forecast{border:1.5px dashed var(--line);border-radius:14px;padding:18px;background:#FAFBFC;margin-top:18px;}
-.simple-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.simple-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
 @media(max-width:880px){.simple-grid{grid-template-columns:1fr;}}
 .scard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 20px;box-shadow:var(--shadow);text-align:center;}
 .scard .sl{font-size:13px;color:var(--ink-2);font-weight:700;margin-top:8px;}
@@ -153,6 +172,8 @@ section[data-testid="stMain"]{overflow:unset!important;}
 [data-testid="stPlotlyChart"]{margin-bottom:12px;}
 .tab-bottom-spacer{height:48px;}
 .stButton>button[kind="primary"]{background:var(--accent)!important;color:#fff!important;font-weight:700!important;border-radius:10px!important;padding:12px 24px!important;box-shadow:0 4px 12px rgba(78,121,167,.3)!important;border:none!important;}
+.stButton>button[kind="primary"]:disabled,.stButton>button:disabled{background:#C5CDD6!important;color:#fff!important;box-shadow:none!important;cursor:not-allowed!important;opacity:1!important;border:none!important;}
+.data-source-note{font-size:12px;color:var(--ink-2);margin:4px 0 14px;}
 div[data-testid="stFileUploader"] section{border:1.5px dashed var(--line)!important;border-radius:var(--radius)!important;background:var(--surface)!important;}
 div[data-testid="stFileUploader"] section:hover{border-color:var(--accent)!important;}
 </style>
@@ -176,6 +197,22 @@ STAGE_RECIPE = {
 
 def _clamp(x, a, b):
     return max(a, min(b, x))
+
+
+def read_uploaded_table(uploaded_file) -> pd.DataFrame:
+    """업로드 파일(CSV · XLSX)을 DataFrame으로 읽기."""
+    name = (uploaded_file.name or "").lower()
+    if name.endswith(".xlsx"):
+        return pd.read_excel(uploaded_file, engine="openpyxl")
+    return pd.read_csv(uploaded_file)
+
+
+def read_table_path(path: Path) -> pd.DataFrame:
+    """로컬 CSV · XLSX 파일을 DataFrame으로 읽기."""
+    suffix = path.suffix.lower()
+    if suffix in (".xlsx", ".xls"):
+        return pd.read_excel(path, engine="openpyxl")
+    return pd.read_csv(path)
 
 
 def render_dims_header(asof_date: str, subtitle: str | None = None):
@@ -289,6 +326,8 @@ def _status_from_opt_range(val: float, opt_lo: float, opt_hi: float, env_key: st
     if opt_lo <= val <= opt_hi:
         return "ok", "적정"
     if val > opt_hi:
+        if env_key == "일사량":
+            return "risk", "최고한계"
         status = "risk" if env_key == "야간습도" else "warn"
         return status, "높음"
     return "warn", "낮음"
@@ -301,6 +340,7 @@ def build_env_kpis_from_measures(measures: dict[str, float]) -> list[dict]:
         ("주간 온도", "주간온도", "℃", 15, 30, 20, 24),
         ("야간 온도", "야간온도", "℃", 10, 25, 15, 18),
         ("주간 습도", "주간습도", "%", 40, 100, 60, 80),
+        ("주간 CO₂", "주간CO2", "ppm", 300, 900, 400, 800),
     ]
     kpis = []
     for name, key, unit, vmin, vmax, opt_lo, opt_hi in specs:
@@ -308,11 +348,101 @@ def build_env_kpis_from_measures(measures: dict[str, float]) -> list[dict]:
         if val is None or (isinstance(val, float) and np.isnan(val)):
             continue
         status, label = _status_from_opt_range(float(val), opt_lo, opt_hi, key)
+        if opt_lo <= float(val) <= opt_hi:
+            label = "적정"
+        elif float(val) > opt_hi:
+            if key == "야간습도":
+                label = "다습"
+            elif key in ("주간온도", "야간온도"):
+                label = "고온"
+            elif key == "일사량":
+                label = "최고한계"
+            else:
+                label = "높음"
+            if key == "야간습도" and status == "risk":
+                status = "warn"
+        else:
+            label = "낮음"
         kpis.append({
             "name": name, "unit": unit, "val": float(val), "status": status, "label": label,
             "min": vmin, "max": vmax, "optLo": opt_lo, "optHi": opt_hi,
         })
     return kpis
+
+
+def _alert_priority_kpis(kpis: list[dict]) -> list[dict]:
+    """상단 알림 순서 — 야간습도·일사량 등 주요 항목 우선."""
+    order = {"야간 습도": 0, "한낮 일사량": 1, "주간 온도": 2, "야간 온도": 3}
+    flagged = [k for k in kpis if k["status"] != "ok"]
+    return sorted(flagged, key=lambda k: (order.get(k["name"], 9), {"risk": 0, "warn": 1}.get(k["status"], 9)))
+
+
+def _sort_env_kpis(kpis: list[dict]) -> list[dict]:
+    order = {"risk": 0, "warn": 1, "ok": 2}
+    return sorted(kpis, key=lambda k: order.get(k["status"], 9))
+
+
+def _format_kpi_value(k: dict) -> str:
+    if k["unit"] in ("℃", "%"):
+        return f'{k["val"]:.1f}{k["unit"]}'
+    if k["unit"] == "ppm":
+        return f'{k["val"]:.0f}{k["unit"]}'
+    return f'{k["val"]:.1f}'
+
+
+def _env_primary_alert(k: dict) -> str:
+    if k["val"] > k["optHi"]:
+        detail = "적정 구간을 초과했습니다"
+    elif k["val"] < k["optLo"]:
+        detail = "적정 구간보다 낮습니다"
+    else:
+        detail = f'{k["label"]} 상태입니다'
+    return f'오늘 꼭 볼 것 — <b>{k["name"]}</b>가 {detail}. 환경 제어를 점검하세요.'
+
+
+def _env_secondary_alert(k: dict) -> str:
+    return (
+        f'이상 지속 알림 — <b>{k["name"]} {_format_kpi_value(k)}</b> '
+        f'상태가 지속되고 있습니다.'
+    )
+
+
+def build_status_env_kpis(
+    sensor_df=None,
+    date_col_sensor=None,
+    temp_col=None,
+    hum_col=None,
+    solar_col=None,
+    co2_col=None,
+    latest_row=None,
+    selected_week: int = 7,
+    core=None,
+) -> list[dict]:
+    """현황 탭 환경 KPI — 업로드 센서 최근 7일 우선."""
+    if sensor_df is not None and date_col_sensor and temp_col:
+        measures = build_recent_env_measures(
+            sensor_df, date_col_sensor, temp_col, hum_col, solar_col, co2_col=co2_col
+        )
+        if measures:
+            return build_env_kpis_from_measures(measures)
+    if latest_row is not None and core is not None:
+        return build_env_kpis_from_row(latest_row, selected_week, core)
+    return []
+
+
+def _yield_cumulative_totals(
+    yield_df,
+    date_col_yield,
+    harvest_count_col,
+    harvest_weight_col,
+    growth_cols,
+) -> tuple[int, int]:
+    chart = build_growth_chart_df(
+        yield_df, date_col_yield, harvest_count_col, harvest_weight_col, growth_cols
+    )
+    harvest_total = int(pd.to_numeric(chart["수확수"], errors="coerce").fillna(0).sum()) if "수확수" in chart.columns else 0
+    fruit_total = int(pd.to_numeric(chart["착과수"], errors="coerce").fillna(0).sum()) if "착과수" in chart.columns else 0
+    return harvest_total, fruit_total
 
 
 def build_recent_env_measures(
@@ -321,29 +451,46 @@ def build_recent_env_measures(
     temp_col: str,
     hum_col: str | None,
     solar_col: str | None,
+    co2_col: str | None = None,
     days: int = 7,
+    solar_override: float | None = None,
 ) -> dict[str, float]:
     from rda_standards import build_rda_recent_actuals
 
-    measures = build_rda_recent_actuals(sensor_df, date_col, temp_col, solar_col, days=days)
-    if sensor_df is None or hum_col is None or hum_col not in sensor_df.columns:
+    measures = build_rda_recent_actuals(
+        sensor_df, date_col, temp_col, solar_col, days=days, solar_override=solar_override
+    )
+    if sensor_df is None or date_col not in sensor_df.columns:
         return measures
-    tmp = sensor_df[[date_col, hum_col]].copy()
-    tmp[date_col] = pd.to_datetime(tmp[date_col], errors="coerce")
-    tmp[hum_col] = pd.to_numeric(tmp[hum_col], errors="coerce")
-    tmp = tmp.dropna()
-    if tmp.empty:
-        return measures
-    tmp["hour"] = tmp[date_col].dt.hour
-    latest_date = tmp[date_col].max()
-    start = pd.Timestamp(latest_date.date()) - pd.Timedelta(days=days - 1)
-    subset = tmp[tmp[date_col] >= start]
-    day = subset[(subset["hour"] >= 8) & (subset["hour"] <= 18)]
-    night = subset[(subset["hour"] >= 19) | (subset["hour"] <= 7)]
-    if not day[hum_col].empty:
-        measures["주간습도"] = float(day[hum_col].mean())
-    if not night[hum_col].empty:
-        measures["야간습도"] = float(night[hum_col].mean())
+    if hum_col and hum_col in sensor_df.columns:
+        subset_h = sensor_df[[date_col, hum_col]].copy()
+        subset_h[date_col] = pd.to_datetime(subset_h[date_col], errors="coerce")
+        subset_h[hum_col] = pd.to_numeric(subset_h[hum_col], errors="coerce")
+        subset_h = subset_h.dropna()
+        if not subset_h.empty:
+            subset_h["hour"] = subset_h[date_col].dt.hour
+            latest_h = subset_h[date_col].max()
+            start_h = pd.Timestamp(latest_h.date()) - pd.Timedelta(days=days - 1)
+            sub_h = subset_h[subset_h[date_col] >= start_h]
+            day_h = sub_h[(sub_h["hour"] >= 8) & (sub_h["hour"] <= 18)]
+            night_h = sub_h[(sub_h["hour"] >= 19) | (sub_h["hour"] <= 7)]
+            if not day_h[hum_col].empty:
+                measures["주간습도"] = float(day_h[hum_col].mean())
+            if not night_h[hum_col].empty:
+                measures["야간습도"] = float(night_h[hum_col].mean())
+    if co2_col and co2_col in sensor_df.columns:
+        subset_c = sensor_df[[date_col, co2_col]].copy()
+        subset_c[date_col] = pd.to_datetime(subset_c[date_col], errors="coerce")
+        subset_c[co2_col] = pd.to_numeric(subset_c[co2_col], errors="coerce")
+        subset_c = subset_c.dropna()
+        if not subset_c.empty:
+            subset_c["hour"] = subset_c[date_col].dt.hour
+            latest_c = subset_c[date_col].max()
+            start_c = pd.Timestamp(latest_c.date()) - pd.Timedelta(days=days - 1)
+            sub_c = subset_c[subset_c[date_col] >= start_c]
+            day_c = sub_c[(sub_c["hour"] >= 8) & (sub_c["hour"] <= 18)]
+            if not day_c[co2_col].empty:
+                measures["주간CO2"] = float(day_c[co2_col].mean())
     return measures
 
 
@@ -463,35 +610,37 @@ def render_env_detail_section(
     date_col: str | None = None,
     temp_col: str | None = None,
     hum_col: str | None = None,
-    expanded: bool = False,
     context_note: str | None = None,
 ):
-    """현황 탭과 동일 — 지금 값·적정 구간·제어 품질."""
-    with st.expander("환경 상세 — 지금 값·적정 구간·제어 품질", expanded=expanded):
-        st.markdown(
-            '<div class="eyebrow" style="margin-top:4px;">Now · <span class="ko">지금 환경 상태 — 지금 값(●)과 적정 구간(초록)</span></div>',
-            unsafe_allow_html=True,
-        )
-        if kpis:
-            render_gauge_strip(kpis)
-        else:
-            st.info("환경센서 데이터 업로드 후 「분석 결과 보기」를 실행하면 지금 환경 상태를 확인할 수 있습니다.")
+    """지금 값·적정 구간·제어 품질."""
+    st.markdown(
+        '<div class="eyebrow">Env · <span class="ko">환경 상세 — 지금 값·적정 구간·제어 품질</span></div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        '<div class="eyebrow" style="margin-top:4px;">Now · <span class="ko">지금 환경 상태 — 지금 값(●)과 적정 구간(초록)</span></div>',
+        unsafe_allow_html=True,
+    )
+    if kpis:
+        render_gauge_strip(kpis)
+    else:
+        st.info("환경센서 데이터 업로드 후 「분석 결과 보기」를 실행하면 지금 환경 상태를 확인할 수 있습니다.")
 
-        note = context_note or (
-            "※ 적정 구간은 작기 전체 기준입니다. "
-            "<b style=\"color:var(--ink-2)\">농진청 표준 조회</b> 결과와 함께 현재 생육단계 목표 환경을 확인하세요."
-        )
-        st.markdown(f'<p class="subnote">{note}</p>', unsafe_allow_html=True)
+    note = context_note or (
+        "※ 적정 구간은 작기 전체 기준입니다. "
+        "<b style=\"color:var(--ink-2)\">농진청 표준 조회</b> 결과와 함께 현재 생육단계 목표 환경을 확인하세요."
+    )
+    st.markdown(f'<p class="subnote">{note}</p>', unsafe_allow_html=True)
 
-        st.markdown(
-            '<div class="eyebrow">Control · <span class="ko">환경 제어가 잘 되고 있나 (최근 7일)</span></div>',
-            unsafe_allow_html=True,
-        )
-        control = build_control_quality_from_sensor(sensor_df, date_col, temp_col, hum_col)
-        if control:
-            render_control_quality_stats(control)
-        else:
-            st.caption("온도·습도 센서 데이터가 있으면 최근 7일 제어 품질을 함께 표시합니다.")
+    st.markdown(
+        '<div class="eyebrow">Control · <span class="ko">환경 제어가 잘 되고 있나 (최근 7일)</span></div>',
+        unsafe_allow_html=True,
+    )
+    control = build_control_quality_from_sensor(sensor_df, date_col, temp_col, hum_col)
+    if control:
+        render_control_quality_stats(control)
+    else:
+        st.caption("온도·습도 센서 데이터가 있으면 최근 7일 제어 품질을 함께 표시합니다.")
 
 
 def render_action_item(rank, title, why, desc, status, color):
@@ -525,28 +674,39 @@ def render_stage_bar(n_points: int = None):
     st.markdown(f'<div class="stage-bar">{"".join(segs)}</div>', unsafe_allow_html=True)
 
 
-def render_rda_stage_bar(selected: str):
-    from rda_standards import RDA_STAGES_SOLAR, RDA_STAGE_COLORS
+_RDA_STAGE_SHORT_LABELS = {
+    "생육초기": "생육초기",
+    "생육중기(9~10월)": "중기(9~10)",
+    "생육중기(11~12월)": "중기(11~12)",
+    "생육중기(1~2월)": "중기(1~2)",
+    "생육중기(3~6월)": "중기(3~6)",
+    "생육말기(7~8월)": "말기(7~8)",
+    "생육말기(7~8월, 상대 주차 < 10)": "말기(7~8)",
+}
 
-    labels = {
-        "생육초기": "생육초기",
-        "생육중기(9~10월)": "중기(9~10)",
-        "생육중기(11~12월)": "중기(11~12)",
-        "생육중기(1~2월)": "중기(1~2)",
-        "생육중기(3~6월)": "중기(3~6)",
-        "생육말기(7~8월)": "말기(7~8)",
-    }
-    n = len(RDA_STAGES_SOLAR)
+
+def _build_rda_stage_bar_html(selected: str, stages: list[str], kind: str) -> str:
+    """농진청 생육단계 바 HTML (기존 stage-bar / stage-seg 형태)."""
+    from rda_standards import RDA_STAGE_COLORS
+
+    n = len(stages)
     segs = []
-    for stage in RDA_STAGES_SOLAR:
+    for i, stage in enumerate(stages):
         color = RDA_STAGE_COLORS.get(stage, "#4E79A7")
         opacity = "1" if stage == selected else "0.45"
         border = "2px solid var(--ink)" if stage == selected else "2px solid transparent"
+        cls = "stage-seg stage-seg--s1" if i == 0 else "stage-seg"
+        label = html.escape(_RDA_STAGE_SHORT_LABELS.get(stage, stage))
         segs.append(
-            f'<div class="stage-seg" style="width:{100 / n:.4f}%;min-width:{100 / n:.4f}%;'
-            f'background:{color};opacity:{opacity};border:{border};">{labels.get(stage, stage)}</div>'
+            f'<div class="{cls}" style="width:{100 / n:.4f}%;min-width:{100 / n:.4f}%;'
+            f'background:{color};opacity:{opacity};border:{border};">{label}</div>'
         )
-    st.markdown(f'<div class="stage-bar">{"".join(segs)}</div>', unsafe_allow_html=True)
+    return f'<div class="stage-bar stage-bar-rda-{html.escape(kind)}">{"".join(segs)}</div>'
+
+
+def render_rda_stage_picker(kind: str, selected: str, stages: list[str]) -> None:
+    """생육단계 컬러 바 (라디오 선택과 동기화된 시각 표시)."""
+    st.markdown(_build_rda_stage_bar_html(selected, stages, kind), unsafe_allow_html=True)
 
 
 def _judge_in_range(val: float, range_text: str) -> tuple[str, str]:
@@ -740,11 +900,12 @@ def render_rda_flow_tab(
     temp_col=None,
     hum_col=None,
     solar_col=None,
+    co2_col=None,
     yield_df=None,
     date_col_yield=None,
-    env_kpis: list[dict] | None = None,
 ):
     from rda_standards import (
+        RDA_STAGES_GROWTH,
         RDA_STAGES_SOLAR,
         build_rda_recent_actuals,
         estimate_cumulative_solar,
@@ -759,7 +920,7 @@ def render_rda_flow_tab(
     )
 
     st.markdown(
-        '<div class="data-head"><h1>생육 흐름 (농진청)</h1>'
+        '<div class="data-head"><h1>생육 흐름</h1>'
         '<p>농진청 토마토 시설재배 <b>일사량별 최적환경</b>·<b>생육상태별 최적생산량</b> 표준을 조회합니다.</p></div>',
         unsafe_allow_html=True,
     )
@@ -793,16 +954,20 @@ def render_rda_flow_tab(
     for sub, kind in ((sub_solar, "solar"), (sub_growth, "growth")):
         with sub:
             facility = st.radio("시설유형", ["비닐", "유리"], horizontal=True, key=f"rda_facility_{kind}")
-            stage_idx = RDA_STAGES_SOLAR.index(default_stage) if default_stage in RDA_STAGES_SOLAR else 4
+            stages = RDA_STAGES_SOLAR if kind == "solar" else RDA_STAGES_GROWTH
+            stage_key = f"rda_stage_{kind}"
+            if stage_key not in st.session_state:
+                st.session_state[stage_key] = (
+                    default_stage if default_stage in stages else stages[4]
+                )
             stage = st.radio(
                 "권장설정 조회 선택사항",
-                RDA_STAGES_SOLAR,
-                index=stage_idx,
+                stages,
                 horizontal=True,
-                key=f"rda_stage_{kind}",
+                key=stage_key,
             )
             st.markdown('<div class="eyebrow">Stage · <span class="ko">생육단계</span></div>', unsafe_allow_html=True)
-            render_rda_stage_bar(stage)
+            render_rda_stage_picker(kind, stage, stages)
 
             st.markdown(
                 '<div class="eyebrow" style="margin-top:18px;">Search · <span class="ko">맞춤형 최적환경설정 조회</span></div>',
@@ -825,7 +990,14 @@ def render_rda_flow_tab(
                 )
             with c3:
                 st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-                search = st.button("조회", type="primary", use_container_width=True, key=f"rda_search_{kind}")
+                can_search = bool(solar_str.strip())
+                search = st.button(
+                    "조회",
+                    type="primary",
+                    use_container_width=True,
+                    disabled=not can_search,
+                    key=f"rda_search_{kind}",
+                )
 
             if kind == "solar":
                 raw = load_solar_standard(facility, stage)
@@ -844,9 +1016,13 @@ def render_rda_flow_tab(
             match_group_idx: list[int] = []
             aggregated_rec = None
             if search:
+                st.session_state["rda_env_detail_show"] = True
                 try:
                     if solar_str.strip():
                         solar_q = float(solar_str.replace(",", ""))
+                        st.session_state["rda_last_solar_q"] = solar_q
+                    else:
+                        st.session_state.pop("rda_last_solar_q", None)
                 except ValueError:
                     st.warning("누적일사량은 숫자로 입력해 주세요.")
                 try:
@@ -889,22 +1065,37 @@ def render_rda_flow_tab(
                 )
                 render_rda_compare_table(aggregated_rec, rda_actuals)
 
-    rda_kpis = env_kpis
-    if not rda_kpis and sensor_df is not None and date_col_sensor and temp_col:
-        measures = build_recent_env_measures(
-            sensor_df, date_col_sensor, temp_col, hum_col, solar_col
-        )
-        if measures:
+    if st.session_state.get("rda_env_detail_show"):
+        if sensor_df is not None and date_col_sensor and temp_col:
+            solar_override = st.session_state.get("rda_last_solar_q")
+            measures = build_recent_env_measures(
+                sensor_df,
+                date_col_sensor,
+                temp_col,
+                hum_col,
+                solar_col,
+                co2_col=co2_col,
+                solar_override=solar_override,
+            )
             rda_kpis = build_env_kpis_from_measures(measures)
-
-    render_env_detail_section(
-        rda_kpis,
-        sensor_df=sensor_df,
-        date_col=date_col_sensor,
-        temp_col=temp_col,
-        hum_col=hum_col,
-        expanded=True,
-    )
+            render_env_detail_section(
+                rda_kpis,
+                sensor_df=sensor_df,
+                date_col=date_col_sensor,
+                temp_col=temp_col,
+                hum_col=hum_col,
+                context_note=(
+                    "※ 적정 구간은 작기 전체 기준입니다. "
+                    "<b style=\"color:var(--ink-2)\">업로드한 환경센서 최근 7일</b> 데이터로 계산했습니다. "
+                    "농진청 표준 조회 결과와 함께 현재 생육단계 목표 환경을 확인하세요."
+                ),
+            )
+        else:
+            st.markdown(
+                '<div class="eyebrow">Env · <span class="ko">환경 상세 — 지금 값·적정 구간·제어 품질</span></div>',
+                unsafe_allow_html=True,
+            )
+            st.info("환경센서 데이터를 업로드하면 조회 결과와 함께 환경 상세를 확인할 수 있습니다.")
 
     st.markdown('<div class="tab-bottom-spacer"></div>', unsafe_allow_html=True)
 
@@ -975,7 +1166,14 @@ def render_disclaimer():
     )
 
 
-def _plotly_timeseries(df, x_col, y_col, title, color="#4E79A7", stages=None):
+def _plotly_timeseries(
+    df,
+    x_col,
+    y_col,
+    title,
+    color="#4E79A7",
+    standard_df: pd.DataFrame | None = None,
+):
     plot_df = df[[x_col, y_col]].copy()
     plot_df[x_col] = pd.to_datetime(plot_df[x_col], errors="coerce")
     plot_df[y_col] = pd.to_numeric(plot_df[y_col], errors="coerce")
@@ -983,22 +1181,177 @@ def _plotly_timeseries(df, x_col, y_col, title, color="#4E79A7", stages=None):
     if plot_df.empty:
         return None
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=plot_df[x_col], y=plot_df[y_col], mode="lines+markers", line=dict(color=color, width=2), marker=dict(size=5)))
-    if stages and len(plot_df) > 1:
-        n = len(plot_df)
-        for stg in stages:
-            x0 = plot_df[x_col].iloc[stg["s"]]
-            x1 = plot_df[x_col].iloc[min(stg["e"], n - 1)]
-            fig.add_vrect(x0=x0, x1=x1, fillcolor=stg["color"], opacity=0.1, line_width=0)
+    if standard_df is not None and not standard_df.empty and {"p25", "p50", "p75"}.issubset(standard_df.columns):
+        std = standard_df.copy()
+        std[x_col] = pd.to_datetime(std[x_col], errors="coerce")
+        std = std.dropna(subset=[x_col, "p50"]).sort_values(x_col)
+        if not std.empty:
+            fig.add_trace(go.Scatter(
+                x=std[x_col], y=std["p75"], mode="lines",
+                line=dict(width=0), showlegend=False, hoverinfo="skip",
+            ))
+            fig.add_trace(go.Scatter(
+                x=std[x_col], y=std["p25"], mode="lines",
+                line=dict(width=0), fill="tonexty",
+                fillcolor="rgba(78, 121, 167, 0.18)",
+                name="표준 범위 (p25~p75)", hoverinfo="skip",
+            ))
+            fig.add_trace(go.Scatter(
+                x=std[x_col], y=std["p50"], mode="lines",
+                line=dict(color="#8A97A4", width=2, dash="dash"),
+                name="표준 중앙값 (p50)",
+            ))
+    fig.add_trace(go.Scatter(
+        x=plot_df[x_col], y=plot_df[y_col], mode="lines+markers",
+        line=dict(color=color, width=2), marker=dict(size=5),
+        name="내 농가",
+    ))
     fig.update_layout(
         title=title, height=220, margin=dict(l=40, r=10, t=36, b=30),
-        template="plotly_white", showlegend=False,
+        template="plotly_white",
+        showlegend=standard_df is not None and not standard_df.empty,
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0, font=dict(size=10)),
         paper_bgcolor="#fff", plot_bgcolor="#F7F8FA",
         font=dict(family="Pretendard, sans-serif", size=11, color="#243240"),
     )
     fig.update_xaxes(gridcolor="#EEF1F5", linecolor="#D7DDE4")
     fig.update_yaxes(gridcolor="#EEF1F5", linecolor="#D7DDE4")
     return fig
+
+
+def build_growth_chart_df(
+    source_df,
+    date_col: str = "조사일자",
+    harvest_count_col: str | None = None,
+    harvest_weight_col: str | None = None,
+    growth_cols: dict[str, str | None] | None = None,
+) -> pd.DataFrame:
+    """업로드 생육·수확 파일을 조사일자별 실측 차트용 DataFrame으로 정리."""
+    if source_df is None or source_df.empty:
+        return pd.DataFrame()
+
+    frame = source_df.copy()
+    dcol = date_col if date_col in frame.columns else "조사일자"
+    if dcol != "조사일자" and dcol in frame.columns:
+        frame = frame.rename(columns={dcol: "조사일자"})
+    if "조사일자" not in frame.columns:
+        return pd.DataFrame()
+
+    frame["조사일자"] = pd.to_datetime(frame["조사일자"], errors="coerce")
+    frame = frame.dropna(subset=["조사일자"])
+    if frame.empty:
+        return pd.DataFrame()
+
+    sum_cols: list[str] = []
+    mean_cols: list[str] = []
+
+    if "수확수" in frame.columns:
+        frame["수확수"] = pd.to_numeric(frame["수확수"], errors="coerce")
+        sum_cols.append("수확수")
+    elif harvest_count_col and harvest_count_col in frame.columns:
+        frame["수확수"] = pd.to_numeric(frame[harvest_count_col], errors="coerce")
+        sum_cols.append("수확수")
+
+    if "착과수" in frame.columns:
+        frame["착과수"] = pd.to_numeric(frame["착과수"], errors="coerce")
+        sum_cols.append("착과수")
+    elif harvest_weight_col and harvest_weight_col in frame.columns:
+        frame["착과수"] = pd.to_numeric(frame[harvest_weight_col], errors="coerce")
+        sum_cols.append("착과수")
+
+    for gf, src in (growth_cols or {}).items():
+        col = gf if gf in frame.columns else src
+        if not col or col not in frame.columns:
+            continue
+        frame[gf] = pd.to_numeric(frame[col], errors="coerce")
+        if gf not in mean_cols:
+            mean_cols.append(gf)
+
+    for gf in ["초장", "생장길이", "엽수", "엽장", "엽폭", "줄기굵기", "화방높이"]:
+        if gf in frame.columns and gf not in mean_cols:
+            frame[gf] = pd.to_numeric(frame[gf], errors="coerce")
+            mean_cols.append(gf)
+
+    agg: dict[str, str] = {c: "sum" for c in sum_cols}
+    for c in mean_cols:
+        if c not in agg:
+            agg[c] = "mean"
+    if not agg:
+        return pd.DataFrame()
+
+    frame["_chart_date"] = frame["조사일자"].dt.normalize()
+    out = frame.groupby("_chart_date", as_index=False).agg(agg)
+    out = out.rename(columns={"_chart_date": "조사일자"})
+    return out.sort_values("조사일자")
+
+
+GROWTH_CHART_PRIMARY = ["착과수", "초장", "엽수", "수확수"]
+GROWTH_CHART_EXTRA = ["생장길이", "엽장", "엽폭", "줄기굵기", "화방높이"]
+
+
+def render_growth_timeseries_section(df, date_col: str = "조사일자", key_prefix: str = "growth"):
+    """생육·수확 시계열 차트 — 업로드 실측 + data/생육 참조 표준."""
+    import app as core
+    from growth_standards import build_growth_standard_curves
+
+    if df is None or df.empty:
+        return
+
+    plot_df = df.copy()
+    if date_col != "조사일자" and date_col in plot_df.columns:
+        plot_df = plot_df.rename(columns={date_col: "조사일자"})
+    if "조사일자" not in plot_df.columns:
+        return
+
+    plot_df["조사일자"] = pd.to_datetime(plot_df["조사일자"], errors="coerce")
+    plot_df = plot_df.dropna(subset=["조사일자"]).sort_values("조사일자")
+    if plot_df.empty:
+        return
+
+    plot_cols = [c for c in GROWTH_CHART_PRIMARY if c in plot_df.columns]
+    plot_cols += [c for c in GROWTH_CHART_EXTRA if c in plot_df.columns and c not in plot_cols]
+    if not plot_cols:
+        return
+
+    upload_start = plot_df["조사일자"].min()
+    upload_end = plot_df["조사일자"].max()
+    max_rel_day = int((upload_end - upload_start).days) + 7
+    standard_curves, n_ref_farms = build_growth_standard_curves(upload_start, max_rel_day=max_rel_day)
+
+    st.markdown(
+        '<div class="eyebrow">Growth · <span class="ko">생육·수확이 어떻게 커왔나</span></div>',
+        unsafe_allow_html=True,
+    )
+    if standard_curves and n_ref_farms:
+        st.caption(
+            f"**실선 · 내 농가** = 업로드 파일 조사일자별 실측 · "
+            f"**회색 점선 · 표준** = `data/생육` 참조 {n_ref_farms}개 농가 "
+            f"(정식 시기 {upload_start.strftime('%m-%d')} 전후 유사 농가 가중 · 주별 p25~p75)"
+        )
+    else:
+        st.caption(
+            "업로드한 생육·수확 파일의 **조사일자별 실측값**입니다. "
+            "같은 날짜에 화방별 여러 행이 있으면 수확·착과는 합산, 생육 측정값은 평균으로 표시합니다."
+        )
+    colors = {
+        "착과수": "#4E79A7", "초장": "#59A14F", "엽수": "#59A14F", "수확수": "#E15759",
+        "생장길이": "#76B7B2", "엽장": "#B07AA1", "엽폭": "#9C755F", "줄기굵기": "#EDC948", "화방높이": "#AF7AA1",
+    }
+    plot_df = plot_df.sort_values("조사일자")
+    st.markdown('<div class="chart-grid">', unsafe_allow_html=True)
+    for i in range(0, len(plot_cols), 2):
+        cols = st.columns(2, gap="medium")
+        for j, col_name in enumerate(plot_cols[i : i + 2]):
+            with cols[j]:
+                std_df = standard_curves.get(col_name)
+                fig = _plotly_timeseries(
+                    plot_df, "조사일자", col_name, col_name,
+                    colors.get(col_name, "#4E79A7"),
+                    standard_df=std_df,
+                )
+                if fig:
+                    core.display_plotly(fig, key=f"{key_prefix}_{col_name}")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def run_desktop_ui(render_xai_fn):
@@ -1013,119 +1366,221 @@ def run_desktop_ui(render_xai_fn):
 
     render_dims_header(st.session_state.get("dims_asof", "—"))
 
-    tab_data, tab_now, tab_series, tab_forecast, tab_rda = st.tabs(
-        ["1 데이터", "2 현황", "3 생육 흐름", "4 예측", "5 생육 흐름 (농진청)"]
+    tab_data, tab_now, tab_series, tab_forecast = st.tabs(
+        ["1 데이터", "2 현황", "3 생육 흐름", "4 예측"]
     )
 
     sensor_file = yield_file = None
     crop_name = st.session_state.get("dims_crop", "토마토")
+    has_data = False
+    run = False
 
     with tab_data:
         st.markdown(
-            '<div class="data-head"><h1>분석할 데이터를 올려주세요</h1>'
-            '<p>작물을 선택하고 CSV를 올리면 컬럼이 자동으로 매핑됩니다. 확인 후 분석을 실행하세요.</p></div>',
+            '<div class="map-sub" style="font-size:11px;font-weight:700;color:var(--ink-3);margin:26px 0 9px;">'
+            "작물을 선택해주세요</div>",
             unsafe_allow_html=True,
         )
-        crop_name = st.selectbox("작물", ["토마토", "딸기", "파프리카", "오이"], key="dims_crop")
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown("**환경센서 데이터 (CSV)**")
-            st.caption("측정일자 · 온도 · 습도 · CO₂ · 외부누적일사량")
-            sensor_file = st.file_uploader("환경센서", type=["csv"], label_visibility="collapsed", key="dims_sensor")
-        with c2:
-            st.markdown("**수확·생육 데이터 (CSV)**")
-            st.caption("조사일자 · 수확수 · 착과수 · 생육 측정값")
-            yield_file = st.file_uploader("수확·생육", type=["csv"], label_visibility="collapsed", key="dims_yield")
+        crop_name = st.selectbox("작물", ["토마토", "딸기", "파프리카", "오이"], key="dims_crop", label_visibility="collapsed")
 
-        if not (sensor_file and yield_file):
-            st.info("두 CSV 파일을 모두 업로드하면 매핑 확인과 분석 실행이 가능합니다.")
+        st.markdown(
+            '<div class="data-head" style="margin-top:18px;"><h1>분석할 데이터를 올려주세요</h1>'
+            '<p>보안키 또는 파일 업로드 중 <b>하나</b>를 선택해 분석을 진행하세요.</p></div>',
+            unsafe_allow_html=True,
+        )
 
-    if not (sensor_file and yield_file):
-        with tab_now:
-            st.info("데이터 탭에서 CSV를 업로드한 뒤 「분석 결과 보기」를 실행하세요.")
-        with tab_rda:
-            render_rda_flow_tab()
-        render_disclaimer()
-        return
+        if "dims_data_source_mode" not in st.session_state:
+            st.session_state.dims_data_source_mode = "파일 업로드"
+        prev_mode = st.session_state.get("dims_data_source_mode")
+        data_source_mode = st.radio(
+            "데이터 입력 방식",
+            ["보안키 사용", "파일 업로드"],
+            horizontal=True,
+            key="dims_data_source_mode",
+        )
+        if prev_mode and prev_mode != data_source_mode:
+            if data_source_mode == "보안키 사용":
+                st.session_state.pop("dims_sensor", None)
+                st.session_state.pop("dims_yield", None)
+            else:
+                st.session_state["dims_security_key"] = ""
 
-    sensor_df = pd.read_csv(sensor_file)
-    yield_df = pd.read_csv(yield_file)
-    yield_df = core.aggregate_fruit_level_yield(
-        yield_df, "조사일자" if "조사일자" in yield_df.columns else yield_df.columns[0]
-    )
-    growth_features = (
-        ["초장", "생장길이", "엽수", "엽장", "엽폭", "줄기굵기", "화방높이"]
-        if crop_name == "토마토"
-        else ["초장", "엽수", "엽장", "엽폭", "줄기굵기", "화방높이"]
-    )
+        demo_unlocked = False
+        has_uploads = False
+        sensor_file = yield_file = None
 
-    with tab_data:
-        with st.expander("매핑 데이터 확인 · 자동 인식됨", expanded=False):
-            st.markdown('<div class="map-sub" style="font-size:11px;font-weight:700;color:var(--ink-3);">환경센서 · 자동 인식</div>', unsafe_allow_html=True)
-            env_chips = [c for c in sensor_df.columns[:8]]
+        if data_source_mode == "보안키 사용":
             st.markdown(
-                '<div class="mchips">' + "".join(f'<span class="mchip">{c}</span>' for c in env_chips) + "</div>",
+                '<p class="data-source-note">데모용 보안키를 입력하면 샘플 데이터로 바로 분석할 수 있습니다.</p>',
                 unsafe_allow_html=True,
             )
-            st.markdown('<div class="map-sub" style="font-size:11px;font-weight:700;color:var(--ink-3);margin-top:12px;">수확·생육 · 자동 인식</div>', unsafe_allow_html=True)
-            yld_chips = [c for c in yield_df.columns[:10]]
-            st.markdown(
-                '<div class="mchips">' + "".join(f'<span class="mchip">{c}</span>' for c in yld_chips) + "</div>",
-                unsafe_allow_html=True,
+            security_key = st.text_input(
+                "보안키",
+                type="password",
+                key="dims_security_key",
+                placeholder="데모 분석용 보안키 입력",
             )
-
-        manual_map = st.checkbox("컬럼이 맞지 않으면 직접 지정", key="dims_manual_map")
-        if manual_map:
-            c1, c2, c3, c4, c5 = st.columns(5)
-            with c1:
-                date_col_sensor = st.selectbox("센서 날짜", sensor_df.columns, index=core.pick_column_index(sensor_df.columns, ["측정시간", "측정 일자", "날짜시간", "일시", "날짜"]))
-            with c2:
-                temp_col = st.selectbox("온도", sensor_df.columns, index=core.pick_column_index(sensor_df.columns, ["온도_내부", "내부온도", "온도"]))
-            with c3:
-                hum_col = st.selectbox("습도", sensor_df.columns, index=core.pick_column_index(sensor_df.columns, ["상대습도_내부", "습도_내부", "습도"]))
-            with c4:
-                co2_col = st.selectbox("CO₂", sensor_df.columns, index=core.pick_column_index(sensor_df.columns, ["잔존CO2", "CO2", "CO₂"]))
-            with c5:
-                solar_options = colmap.list_external_cumulative_solar_columns(sensor_df.columns)
-                if not solar_options:
-                    solar_options = sensor_df.columns.tolist()
-                solar_col = st.selectbox(
-                    "외부누적일사량",
-                    solar_options,
-                    index=colmap.pick_external_cumulative_solar_index(solar_options),
+            demo_unlocked = bool(security_key) and security_key == DIMS_SECURITY_KEY
+            if security_key and not demo_unlocked:
+                st.warning("보안키가 올바르지 않습니다.")
+            elif demo_unlocked:
+                st.caption(
+                    f"데모 데이터 사용: {DEFAULT_SENSOR_FILE.name} · {DEFAULT_YIELD_FILE.name}"
                 )
-            c6, c7, c8 = st.columns(3)
-            with c6:
-                date_col_yield = st.selectbox("조사일자", yield_df.columns, index=core.pick_column_index(yield_df.columns, ["조사일자", "날짜"]))
-            with c7:
-                harvest_count_col = st.selectbox("수확수", yield_df.columns, index=core.pick_column_index(yield_df.columns, ["화방별수확수", "수확수"]))
-            with c8:
-                harvest_weight_col = st.selectbox("착과수", yield_df.columns, index=core.pick_column_index(yield_df.columns, ["화방별착과수", "착과수"]))
-            growth_cols = {}
-            for gf in growth_features:
-                opts = [None] + yield_df.columns.tolist()
-                idx = yield_df.columns.get_loc(gf) + 1 if gf in yield_df.columns else 0
-                growth_cols[gf] = st.selectbox(gf, opts, index=idx, key=f"dims_gf_{gf}")
+            if demo_unlocked and not (
+                DEFAULT_SENSOR_FILE.exists() and DEFAULT_YIELD_FILE.exists()
+            ):
+                st.error("데모 데이터 파일을 찾을 수 없습니다. `sample_data/` 폴더를 확인해 주세요.")
         else:
-            date_col_sensor = sensor_df.columns[core.pick_column_index(sensor_df.columns, ["측정시간", "측정 일자", "날짜시간", "일시", "날짜", "Date", "datetime"])]
-            temp_col = sensor_df.columns[core.pick_column_index(sensor_df.columns, ["온도(℃)", "온도_내부", "내부온도", "온도"])]
-            hum_col = sensor_df.columns[core.pick_column_index(sensor_df.columns, ["상대 습도(%)", "상대습도_내부", "습도_내부", "습도"])]
-            co2_col = sensor_df.columns[core.pick_column_index(sensor_df.columns, ["CO2(ppm)", "잔존CO2", "CO2", "CO₂", "co2"])]
-            solar_col = colmap.pick_external_cumulative_solar_column(sensor_df.columns)
-            date_col_yield = yield_df.columns[core.pick_column_index(yield_df.columns, ["조사일자", "조사 일자", "날짜", "Date", "date"])]
-            harvest_count_col = yield_df.columns[core.pick_column_index(yield_df.columns, ["화방별수확수", "수확수", "수확과수"])]
-            harvest_weight_col = yield_df.columns[core.pick_column_index(yield_df.columns, ["화방별착과수", "착과수", "수확과중"])]
-            growth_cols = {gf: (gf if gf in yield_df.columns else None) for gf in growth_features}
+            st.markdown(
+                '<p class="data-source-note">환경센서·수확·생육 CSV 또는 Excel(xlsx) 파일을 업로드하세요.</p>',
+                unsafe_allow_html=True,
+            )
+            c1, c2 = st.columns(2)
+            with c1:
+                st.markdown("**환경센서 데이터 (CSV · XLSX)**")
+                st.caption("측정일자 · 온도 · 습도 · CO₂ · 외부누적일사량")
+                sensor_file = st.file_uploader(
+                    "환경센서", type=["csv", "xlsx"], label_visibility="collapsed", key="dims_sensor"
+                )
+            with c2:
+                st.markdown("**수확·생육 데이터 (CSV · XLSX)**")
+                st.caption("조사일자 · 수확수 · 착과수 · 생육 측정값")
+                yield_file = st.file_uploader(
+                    "수확·생육", type=["csv", "xlsx"], label_visibility="collapsed", key="dims_yield"
+                )
+            has_uploads = bool(sensor_file and yield_file)
 
+        has_demo = (
+            data_source_mode == "보안키 사용"
+            and demo_unlocked
+            and DEFAULT_SENSOR_FILE.exists()
+            and DEFAULT_YIELD_FILE.exists()
+        )
+        has_data = has_demo if data_source_mode == "보안키 사용" else has_uploads
+        can_analyze = has_data
+
+        sensor_df = yield_df = None
+        if data_source_mode == "보안키 사용" and has_demo:
+            sensor_df = read_table_path(DEFAULT_SENSOR_FILE)
+            yield_df = read_table_path(DEFAULT_YIELD_FILE)
+        elif data_source_mode == "파일 업로드" and has_uploads:
+            sensor_df = read_uploaded_table(sensor_file)
+            yield_df = read_uploaded_table(yield_file)
+
+        if has_data and sensor_df is not None and yield_df is not None:
+            yield_df = core.aggregate_fruit_level_yield(
+                yield_df, "조사일자" if "조사일자" in yield_df.columns else yield_df.columns[0]
+            )
+            growth_features = (
+                ["초장", "생장길이", "엽수", "엽장", "엽폭", "줄기굵기", "화방높이"]
+                if crop_name == "토마토"
+                else ["초장", "엽수", "엽장", "엽폭", "줄기굵기", "화방높이"]
+            )
+
+            with st.expander("매핑 데이터 확인 · 자동 인식됨", expanded=False):
+                st.markdown(
+                    '<div class="map-sub" style="font-size:11px;font-weight:700;color:var(--ink-3);">환경센서 · 자동 인식</div>',
+                    unsafe_allow_html=True,
+                )
+                env_chips = [c for c in sensor_df.columns[:8]]
+                st.markdown(
+                    '<div class="mchips">' + "".join(f'<span class="mchip">{c}</span>' for c in env_chips) + "</div>",
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    '<div class="map-sub" style="font-size:11px;font-weight:700;color:var(--ink-3);margin-top:12px;">수확·생육 · 자동 인식</div>',
+                    unsafe_allow_html=True,
+                )
+                yld_chips = [c for c in yield_df.columns[:10]]
+                st.markdown(
+                    '<div class="mchips">' + "".join(f'<span class="mchip">{c}</span>' for c in yld_chips) + "</div>",
+                    unsafe_allow_html=True,
+                )
+
+            manual_map = st.checkbox("컬럼이 맞지 않으면 직접 지정", key="dims_manual_map")
+            if manual_map:
+                c1, c2, c3, c4, c5 = st.columns(5)
+                with c1:
+                    date_col_sensor = st.selectbox("센서 날짜", sensor_df.columns, index=core.pick_column_index(sensor_df.columns, ["측정시간", "측정 일자", "날짜시간", "일시", "날짜"]))
+                with c2:
+                    temp_col = st.selectbox("온도", sensor_df.columns, index=core.pick_column_index(sensor_df.columns, ["온도_내부", "내부온도", "온도"]))
+                with c3:
+                    hum_col = st.selectbox("습도", sensor_df.columns, index=core.pick_column_index(sensor_df.columns, ["상대습도_내부", "습도_내부", "습도"]))
+                with c4:
+                    co2_col = st.selectbox("CO₂", sensor_df.columns, index=core.pick_column_index(sensor_df.columns, ["잔존CO2", "CO2", "CO₂"]))
+                with c5:
+                    solar_options = colmap.list_external_cumulative_solar_columns(sensor_df.columns)
+                    if not solar_options:
+                        solar_options = sensor_df.columns.tolist()
+                    solar_col = st.selectbox(
+                        "외부누적일사량",
+                        solar_options,
+                        index=colmap.pick_external_cumulative_solar_index(solar_options),
+                    )
+                c6, c7, c8 = st.columns(3)
+                with c6:
+                    date_col_yield = st.selectbox("조사일자", yield_df.columns, index=core.pick_column_index(yield_df.columns, ["조사일자", "날짜"]))
+                with c7:
+                    harvest_count_col = st.selectbox("수확수", yield_df.columns, index=core.pick_column_index(yield_df.columns, ["화방별수확수", "수확수"]))
+                with c8:
+                    harvest_weight_col = st.selectbox("착과수", yield_df.columns, index=core.pick_column_index(yield_df.columns, ["화방별착과수", "착과수"]))
+                growth_cols = {}
+                for gf in growth_features:
+                    opts = [None] + yield_df.columns.tolist()
+                    idx = yield_df.columns.get_loc(gf) + 1 if gf in yield_df.columns else 0
+                    growth_cols[gf] = st.selectbox(gf, opts, index=idx, key=f"dims_gf_{gf}")
+            else:
+                date_col_sensor = sensor_df.columns[core.pick_column_index(sensor_df.columns, ["측정시간", "측정 일자", "날짜시간", "일시", "날짜", "Date", "datetime"])]
+                temp_col = sensor_df.columns[core.pick_column_index(sensor_df.columns, ["온도(℃)", "온도_내부", "내부온도", "온도"])]
+                hum_col = sensor_df.columns[core.pick_column_index(sensor_df.columns, ["상대 습도(%)", "상대습도_내부", "습도_내부", "습도"])]
+                co2_col = sensor_df.columns[core.pick_column_index(sensor_df.columns, ["CO2(ppm)", "잔존CO2", "CO2", "CO₂", "co2"])]
+                solar_col = colmap.pick_external_cumulative_solar_column(sensor_df.columns)
+                date_col_yield = yield_df.columns[core.pick_column_index(yield_df.columns, ["조사일자", "조사 일자", "날짜", "Date", "date"])]
+                harvest_count_col = yield_df.columns[core.pick_column_index(yield_df.columns, ["화방별수확수", "수확수", "수확과수"])]
+                harvest_weight_col = yield_df.columns[core.pick_column_index(yield_df.columns, ["화방별착과수", "착과수", "수확과중"])]
+                growth_cols = {gf: (gf if gf in yield_df.columns else None) for gf in growth_features}
+        elif not can_analyze:
+            if data_source_mode == "보안키 사용":
+                st.info("올바른 보안키를 입력하면 매핑 확인과 분석 실행이 가능합니다.")
+            else:
+                st.info(
+                    "두 파일(CSV 또는 xlsx)을 모두 업로드하면 "
+                    "매핑 확인과 분석 실행이 가능합니다."
+                )
+
+        st.markdown('<div class="run-bar">', unsafe_allow_html=True)
         rb1, rb2, rb3 = st.columns([2, 1, 1])
         with rb2:
-            weeks_val = st.number_input("평균 계산 기간 (주)", min_value=1, max_value=7, value=st.session_state.weeks, key="dims_weeks")
+            weeks_val = st.number_input(
+                "평균 계산 기간 (주)",
+                min_value=1,
+                max_value=7,
+                value=st.session_state.weeks,
+                key="dims_weeks",
+            )
             st.session_state.weeks = int(weeks_val)
         with rb3:
-            run = st.button("분석 결과 보기 →", type="primary", use_container_width=True)
+            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+            run = st.button(
+                "분석 결과 보기 →",
+                type="primary",
+                use_container_width=True,
+                disabled=not can_analyze,
+                key="dims_run_btn",
+            )
             if run:
                 st.session_state.dims_ready = True
                 st.session_state.dims_show_complete_msg = True
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    if not has_data:
+        with tab_now:
+            st.info("데이터 탭에서 보안키 또는 파일 업로드 중 하나를 선택한 뒤 「분석 결과 보기」를 실행하세요.")
+        with tab_series:
+            render_rda_flow_tab()
+        render_disclaimer()
+        return
 
     # 전처리
     sensor_df[date_col_sensor] = pd.to_datetime(sensor_df[date_col_sensor], errors="coerce")
@@ -1152,12 +1607,13 @@ def run_desktop_ui(render_xai_fn):
     if df.empty or "조사일자" not in df.columns:
         st.session_state.dims_show_complete_msg = False
         st.error("생육·수확 데이터를 처리하지 못했습니다. **조사일자** 컬럼과 날짜 형식을 확인해 주세요.")
-        with tab_rda:
+        with tab_series:
             render_rda_flow_tab(
                 sensor_df=sensor_df,
                 date_col_sensor=date_col_sensor,
                 temp_col=temp_col,
                 hum_col=hum_col,
+                co2_col=co2_col,
                 solar_col=solar_col,
                 yield_df=yield_df,
                 date_col_yield=date_col_yield,
@@ -1169,94 +1625,105 @@ def run_desktop_ui(render_xai_fn):
     asof = pd.to_datetime(latest["조사일자"]).strftime("%Y-%m-%d") if latest is not None else "—"
     st.session_state.dims_asof = asof
 
-    measures: dict[str, float] = {}
     dims_ready = st.session_state.dims_ready
-    env_kpis_for_rda: list[dict] | None = None
 
     if dims_ready and st.session_state.pop("dims_show_complete_msg", False):
         st.success("분석이 완료되었습니다. 결과를 확인하세요.")
 
-    if not dims_ready:
-        with tab_now:
-            st.info("데이터 탭에서 매핑을 확인한 뒤 「분석 결과 보기」를 눌러주세요.")
+    yield_chart_df = build_growth_chart_df(
+        yield_df, date_col_yield, harvest_count_col, harvest_weight_col, growth_cols
+    )
+    harvest_total, fruit_total = _yield_cumulative_totals(
+        yield_df, date_col_yield, harvest_count_col, harvest_weight_col, growth_cols
+    )
+
+    env_kpis = build_status_env_kpis(
+        sensor_df=sensor_df,
+        date_col_sensor=date_col_sensor,
+        temp_col=temp_col,
+        hum_col=hum_col,
+        solar_col=solar_col,
+        co2_col=co2_col,
+        latest_row=latest if dims_ready else None,
+        selected_week=selected_week,
+        core=core if dims_ready else None,
+    )
+    risk_kpis = _alert_priority_kpis(env_kpis)
+
+    from growth_standards import summarize_growth_vs_standard
+
+    if dims_ready and not df.empty:
+        growth_chart_df = build_growth_chart_df(
+            df, growth_cols={gf: gf for gf in growth_features if gf in df.columns}
+        )
     else:
-        kpis = build_env_kpis_from_row(latest, selected_week, core) if latest is not None else []
-        env_kpis_for_rda = kpis
-        risk_kpis = [k for k in kpis if k["status"] != "ok"]
-        if latest is not None:
-            w = selected_week
-            measures = {
-                "주간온도": latest.get(core.build_window_feature_name(w, "평균주간온도(08~18시)"), np.nan),
-                "야간온도": latest.get(core.build_window_feature_name(w, "평균야간온도(19~07시)"), np.nan),
-                "주간습도": latest.get(core.build_window_feature_name(w, "평균주간습도(08~18시)"), np.nan),
-                "야간습도": latest.get(core.build_window_feature_name(w, "평균야간습도(19~07시)"), np.nan),
-                "일사량": latest.get(core.build_window_feature_name(w, "평균누적일사량(1일최대값기준)"), np.nan),
-            }
+        growth_chart_df = yield_chart_df
+    growth_summary = summarize_growth_vs_standard(growth_chart_df)
+    delay_days = growth_summary["delay_days"]
 
-        height_col = "초장" if "초장" in df.columns else None
-        delay_days = 0
-        if height_col and len(df) >= 2:
-            std_slope = df[height_col].diff().median()
-            if std_slope and std_slope > 0:
-                delay_days = max(0, int(round((df[height_col].iloc[-1] - df[height_col].iloc[0]) / (std_slope * len(df)) - 1)))
+    n_risk = len([k for k in env_kpis if k["status"] == "risk"])
+    n_warn = len([k for k in env_kpis if k["status"] == "warn"])
+    env_pill = "위험" if n_risk else ("주의" if n_warn else "양호")
+    env_pill_cls = "pill" if n_risk or n_warn else "pill acc"
 
-        harvest_total = int(df["수확수"].sum()) if "수확수" in df.columns else 0
-        fruit_total = int(df["착과수"].sum()) if "착과수" in df.columns else 0
+    with tab_now:
+        if not dims_ready:
+            st.info("데이터 탭에서 매핑을 확인한 뒤 「분석 결과 보기」를 누르면 예측·상세 분석이 열립니다.")
 
-        with tab_now:
-            if risk_kpis:
-                top = risk_kpis[0]
-                render_triage(f'오늘 꼭 볼 것 — <b>{top["name"]}가 적정 구간을 초과</b>했습니다. 환경 제어를 점검하세요.')
-            if len(risk_kpis) > 1:
-                render_triage(
-                    f'이상 지속 알림 — <b>{risk_kpis[1]["name"]} {risk_kpis[1]["val"]:.1f}{risk_kpis[1]["unit"]}</b> 상태가 지속되고 있습니다.',
-                    kind="warn", icon="⏱️",
-                )
+        if risk_kpis:
+            render_triage(_env_primary_alert(risk_kpis[0]))
+        if len(risk_kpis) > 1:
+            render_triage(_env_secondary_alert(risk_kpis[1]), kind="warn", icon="⏱️")
 
-            hc1, hc2 = st.columns([1.55, 1])
-            with hc1:
-                st.markdown(
-                    f"""
-                    <div class="card growth-card">
-                      <span class="pill acc"><span class="bead"></span>{"약간 지연" if delay_days >= 3 else "순조"}</span>
-                      <h2 style="font-size:20px;font-weight:700;margin:12px 0 8px;color:var(--ink);">
-                        생육이 표준보다 약 <span style="color:var(--accent)">{delay_days}일</span> {"지연" if delay_days else "유사"}되고 있습니다.
-                      </h2>
-                      <div style="color:var(--ink-2);font-size:13.5px;">초장·착과 진척을 표준 생육 곡선과 비교합니다.</div>
-                    </div>""",
-                    unsafe_allow_html=True,
-                )
-                if height_col:
-                    core.display_plotly(core.build_interactive_timeseries(df, "조사일자", height_col, title="초장 추이"))
-            with hc2:
-                tags = "".join(f'<span class="tag {"r" if k["status"]=="risk" else "w"}">{k["name"]} {k["val"]:.1f}{k["unit"]} · {k["label"]}</span>' for k in risk_kpis[:4])
-                st.markdown(
-                    f"""
-                    <div class="card verdict-card">
-                      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
-                        <span class="pill"><span class="bead"></span>주의</span>
-                        <span style="font-size:12px;color:var(--ink-3);">환경 <b style="color:var(--risk);">{len([k for k in kpis if k["status"]=="risk"])} 위험 · {len([k for k in kpis if k["status"]=="warn"])} 주의</b></span>
-                      </div>
-                      <h2 style="font-size:18px;font-weight:700;color:var(--ink);">환경 상태를 확인하세요.</h2>
-                      <div style="margin-top:12px;">{tags or '<span class="tag w">데이터 확인 중</span>'}</div>
-                    </div>""",
-                    unsafe_allow_html=True,
-                )
-
-            st.markdown(
-                f"""
-                <div class="stat-row">
-                  <div class="stat"><div class="sl">생육 지연</div><div class="sv">+{delay_days}일</div><div class="sx">표준 대비 (초장 기준)</div></div>
-                  <div class="stat"><div class="sl">누적 수확수</div><div class="sv">{harvest_total}<span style="font-size:13px;color:var(--ink-3);"> 개</span></div><div class="sx">이번 작기 조사 누계</div></div>
-                  <div class="stat"><div class="sl">누적 착과수</div><div class="sv">{fruit_total}<span style="font-size:13px;color:var(--ink-3);"> 개</span></div><div class="sx">이번 작기 조사 누계</div></div>
-                </div>
-                <p class="subnote">※ 표준 생육 곡선·적산온도 목표는 농진청 표준값 확정 후 반영 예정입니다.</p>
-                """,
-                unsafe_allow_html=True,
+        pill_cls = "pill" if growth_summary["pill_warn"] else "pill acc"
+        if env_kpis:
+            tags = "".join(
+                f'<span class="tag {"r" if k["status"]=="risk" else "w"}">'
+                f'{k["name"]} {_format_kpi_value(k)} · {k["label"]}</span>'
+                for k in _sort_env_kpis(env_kpis)[:4]
             )
+        else:
+            tags = '<span class="tag w">환경센서 데이터 없음</span>'
+        st.markdown(
+            f"""
+            <div class="hero-grid">
+              <div class="card growth-card">
+                <span class="{pill_cls}"><span class="bead"></span>{growth_summary["pill_label"]}</span>
+                <h2 style="font-size:20px;font-weight:700;margin:12px 0 8px;color:var(--ink);line-height:1.45;">
+                  {growth_summary["headline"]}
+                </h2>
+                <div class="card-body" style="color:var(--ink-2);font-size:13.5px;">{growth_summary["desc"]}</div>
+              </div>
+              <div class="card verdict-card">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;">
+                  <span class="{env_pill_cls}"><span class="bead"></span>{env_pill}</span>
+                  <span style="font-size:12px;color:var(--ink-3);">환경 <b style="color:var(--risk);">{n_risk} 위험 · {n_warn} 주의</b></span>
+                </div>
+                <h2 style="font-size:18px;font-weight:700;color:var(--ink);">환경 상태를 확인하세요.</h2>
+                <div class="card-body" style="margin-top:12px;">{tags}</div>
+                <div style="margin-top:auto;padding-top:10px;font-size:11.5px;color:var(--ink-3);">업로드 센서 최근 7일 평균 기준</div>
+              </div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
 
+        st.markdown(
+            f"""
+            <div class="stat-row">
+              <div class="stat"><div class="sl">{growth_summary["stat_note"]}</div><div class="sv">{growth_summary["stat_value"]}</div><div class="sx">참조 농가 표준(p25~p75)</div></div>
+              <div class="stat"><div class="sl">누적 수확수</div><div class="sv">{harvest_total:,}<span style="font-size:13px;color:var(--ink-3);"> 개</span></div><div class="sx">업로드 생육·수확 조사 누계</div></div>
+              <div class="stat"><div class="sl">누적 착과수</div><div class="sv">{fruit_total:,}<span style="font-size:13px;color:var(--ink-3);"> 개</span></div><div class="sx">업로드 생육·수확 조사 누계</div></div>
+            </div>
+            <p class="subnote">※ 환경 수치는 업로드 센서 최근 7일, 수확·착과는 업로드 파일 조사일자별 합산입니다. 표준 곡선은 `data/생육` 참조 농가 기준입니다.</p>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        render_growth_timeseries_section(growth_chart_df, key_prefix="status")
+
+        if dims_ready:
             st.markdown('<div class="eyebrow">Act · <span class="ko">오늘 해야 할 일</span></div>', unsafe_allow_html=True)
-            actions = build_actions_from_kpis(kpis)
+            actions = build_actions_from_kpis(env_kpis)
             if actions:
                 st.markdown('<div class="card">', unsafe_allow_html=True)
                 for i, act in enumerate(actions, 1):
@@ -1265,38 +1732,7 @@ def run_desktop_ui(render_xai_fn):
             else:
                 st.success("현재 측정값 기준 긴급 조치 항목이 없습니다.")
 
-            render_env_detail_section(
-                kpis,
-                sensor_df=sensor_df,
-                date_col=date_col_sensor,
-                temp_col=temp_col,
-                hum_col=hum_col,
-                expanded=False,
-                context_note=(
-                    "※ 적정 구간은 작기 전체 기준입니다. "
-                    "<b style=\"color:var(--ink-2)\">현재 생육단계 기준 목표 환경</b>은 ‘생육 흐름’·‘생육 흐름 (농진청)’ 탭에서 확인하세요."
-                ),
-            )
-
-        with tab_series:
-            st.markdown('<div class="eyebrow">Stage · <span class="ko">생육단계</span></div>', unsafe_allow_html=True)
-            render_stage_bar(len(df))
-            st.markdown('<p class="subnote">※ 생육단계 구분 기준일은 농진청 표준 또는 조사기록 기반으로 확정 예정입니다.</p>', unsafe_allow_html=True)
-            st.markdown('<div class="eyebrow">Recipe · <span class="ko">현재 단계 목표환경 대비</span></div>', unsafe_allow_html=True)
-            st.markdown('<div class="recipe-now" style="font-size:12.5px;color:var(--ink-2);margin-bottom:10px;">현재 단계: <b style="color:var(--accent);">비대·수확기</b></div>', unsafe_allow_html=True)
-            render_recipe_table(measures)
-            st.markdown('<div class="eyebrow">Growth · <span class="ko">생육·수확이 어떻게 커왔나</span></div>', unsafe_allow_html=True)
-            plot_cols = [c for c in ["착과수", "초장", "엽수", "수확수"] if c in df.columns]
-            colors = {"착과수": "#4E79A7", "초장": "#59A14F", "엽수": "#59A14F", "수확수": "#E15759"}
-            for i in range(0, len(plot_cols), 2):
-                cols = st.columns(2)
-                for j, col_name in enumerate(plot_cols[i : i + 2]):
-                    with cols[j]:
-                        fig = _plotly_timeseries(df, "조사일자", col_name, col_name, colors.get(col_name, "#4E79A7"), GROWTH_STAGES)
-                        if fig:
-                            core.display_plotly(fig)
-            st.markdown('<div class="tab-bottom-spacer"></div>', unsafe_allow_html=True)
-
+    if dims_ready:
         with tab_forecast:
             st.markdown(
                 '<div class="data-head"><h1>앞으로 전망</h1>'
@@ -1326,16 +1762,16 @@ def run_desktop_ui(render_xai_fn):
                     growth_features=growth_features, sensor_df=sensor_df, yield_df=yield_df,
                 )
 
-    with tab_rda:
+    with tab_series:
         render_rda_flow_tab(
             sensor_df=sensor_df,
             date_col_sensor=date_col_sensor,
             temp_col=temp_col,
             hum_col=hum_col,
+            co2_col=co2_col,
             solar_col=solar_col,
             yield_df=yield_df,
             date_col_yield=date_col_yield,
-            env_kpis=env_kpis_for_rda,
         )
 
     render_disclaimer()

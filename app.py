@@ -566,7 +566,7 @@ def display_matplotlib(fig, use_container_width=True):
     except Exception:
         pass
 
-def display_plotly(fig, use_container_width=True):
+def display_plotly(fig, use_container_width=True, key=None):
     """Plotly 그래프 템플릿을 적용해 안전하게 출력합니다."""
     try:
         fig.update_layout(
@@ -583,6 +583,7 @@ def display_plotly(fig, use_container_width=True):
     st.plotly_chart(
         fig,
         use_container_width=use_container_width,
+        key=key,
         config={
             "scrollZoom": True,
             "displaylogo": False,
