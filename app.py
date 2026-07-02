@@ -1645,8 +1645,13 @@ def generate_comprehensive_report(
 # -------------------------------------------------------------
 def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, sensor_df=None, yield_df=None):
     """예측 탭 expander — 저장된 모델 로드 + XAI 분석."""
-    from model_store import FORECAST_TARGETS, load_model_bundle, models_available
-    from reference_training_data import build_reference_week_df, training_feature_columns
+    from model_store import (
+        FORECAST_TARGETS,
+        build_feature_matrix,
+        load_model_bundle,
+        models_available,
+        shap_background_matrix,
+    )
 
     model_options = ["RandomForest", "XGBoost", "LGBM", "GaussianNB"]
     mc1, mc2 = st.columns(2)
@@ -1683,12 +1688,10 @@ def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, 
     fill = pd.Series(meta["fill"])
     metrics = meta["metrics"]
 
-    ref_df = build_reference_week_df(selected_week, growth_features)
-    X_train = ref_df[features].apply(pd.to_numeric, errors="coerce").fillna(fill)
-
     upload_wk = week_dfs.get(selected_week, df)
-    X_upload = upload_wk[features].apply(pd.to_numeric, errors="coerce").fillna(fill)
-    y_upload = pd.to_numeric(upload_wk[target_col], errors="coerce")
+    X_upload = build_feature_matrix(upload_wk, features, fill)
+    X_train = shap_background_matrix(upload_wk, features, fill)
+    y_upload = pd.to_numeric(upload_wk[target_col], errors="coerce") if target_col in upload_wk.columns else pd.Series(dtype=float)
     valid_mask = y_upload.notna()
     X_test = X_upload.loc[valid_mask].copy()
     y_test = y_upload.loc[valid_mask].copy()
@@ -1718,8 +1721,10 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
                          target_col, features, model, X_train, X_test, metrics,
                          model_bundle=None):
     """기존 XAI 분석 본문 (SHAP · Counterfactual · ICE · ALE · 리포트)."""
-    from model_store import load_weekly_saved_metrics
+    from model_store import build_feature_matrix, load_weekly_saved_metrics
     from reference_training_data import training_feature_columns
+
+    fill = pd.Series(model_bundle["meta"]["fill"]) if model_bundle else X_train.mean(numeric_only=True)
 
     crop_name = st.session_state.get("dims_crop", "토마토")
     _ = crop_name  # legacy compat
@@ -1870,7 +1875,7 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
 
         features = training_feature_columns(df_cv, growth_features)
 
-        X_cv = df_cv[features].copy().fillna(df_cv[features].mean(numeric_only=True))
+        X_cv = build_feature_matrix(df_cv, features, fill)
         y_cv = df_cv[target_col].copy()
 
         valid_mask = y_cv.notna()

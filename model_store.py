@@ -239,6 +239,43 @@ def load_weekly_saved_metrics(model_type: str, target: str) -> list[dict]:
     return rows
 
 
+def build_feature_matrix(
+    frame: pd.DataFrame | pd.Series | None,
+    features: list[str],
+    fill: pd.Series | dict,
+) -> pd.DataFrame:
+    """모델 meta features 순서로 행렬 구성 (없는 컬럼은 fill 값 사용)."""
+    fill = pd.Series(fill).reindex(features).fillna(0.0)
+    if frame is None:
+        return pd.DataFrame([fill.to_dict()], columns=features)
+    if isinstance(frame, pd.Series):
+        frame = frame.to_frame().T
+    if not isinstance(frame, pd.DataFrame) or frame.empty:
+        return pd.DataFrame([fill.to_dict()], columns=features)
+
+    data: dict[str, pd.Series] = {}
+    for f in features:
+        if f in frame.columns:
+            data[f] = pd.to_numeric(frame[f], errors="coerce")
+        else:
+            data[f] = pd.Series(fill[f], index=frame.index)
+    return pd.DataFrame(data, columns=features).fillna(fill)
+
+
+def shap_background_matrix(
+    upload_df: pd.DataFrame | None,
+    features: list[str],
+    fill: pd.Series | dict,
+    min_rows: int = 10,
+) -> pd.DataFrame:
+    """SHAP 배경용 행렬 — 업로드 데이터 + fill 패딩."""
+    X = build_feature_matrix(upload_df, features, fill)
+    if len(X) >= min_rows:
+        return X
+    pad = pd.DataFrame([pd.Series(fill).reindex(features).fillna(0.0).to_dict()] * (min_rows - len(X)))
+    return pd.concat([X, pad], ignore_index=True)
+
+
 def predict_row(
     bundle: dict,
     row: pd.Series,
@@ -247,8 +284,7 @@ def predict_row(
     model_type = model_type or bundle["meta"]["model_type"]
     features = bundle["meta"]["features"]
     fill = pd.Series(bundle["meta"]["fill"])
-    X = row[features].to_frame().T
-    X = X.apply(pd.to_numeric, errors="coerce").fillna(fill)
+    X = build_feature_matrix(row, features, fill)
     pred = float(_predict_values(model_type, bundle["model"], X, bundle.get("extra"))[0])
     if bundle["meta"]["target"] in ("수확수", "착과수"):
         pred = max(0.0, pred)
