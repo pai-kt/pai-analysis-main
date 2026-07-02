@@ -1448,60 +1448,79 @@ def render_model_forecast_section(
 
     harvest_sv = f'{t_harvest.get("pred", 0):.0f}<span style="font-size:14px;color:var(--ink-3);"> 개</span>' if t_harvest else "—"
     harvest_sx = (
-        f'{summary["harvest_note"]}<br>R² {t_harvest["r2"]:.2f} · {week}주 환경'
+        f'<span style="color:var(--ink-3);">모델 추정치</span> · {week}주 환경 입력<br>'
+        f'{summary["harvest_note"]}<br>학습 검증 R² {t_harvest["r2"]:.2f}'
         if t_harvest else ""
     )
     if t_harvest and t_harvest.get("actual") is not None:
-        harvest_sx += f'<br>실측 {t_harvest["actual"]:.0f}개 → 예측 {t_harvest["pred"]:.0f}개'
+        harvest_sx += f'<br>동일 조사일 실측 {t_harvest["actual"]:.0f}개 → 모델 {t_harvest["pred"]:.0f}개'
 
     delay_sv = f'{delay_m}<span style="font-size:14px;color:var(--ink-3);">일</span>'
-    delay_sx = "표준 대비 예측 초장 기준"
+    delay_sx = '<span style="color:var(--ink-3);">모델 추정 초장</span> · 표준곡선(p50) 대비'
     if t_height:
-        delay_sx += f'<br>예측 초장 {t_height["pred"]:.1f}cm · R² {t_height["r2"]:.2f}'
+        delay_sx += f'<br>추정 초장 {t_height["pred"]:.1f}cm · 학습 검증 R² {t_height["r2"]:.2f}'
         if t_height.get("actual") is not None:
             delay_sx += f' (실측 {t_height["actual"]:.1f}cm)'
 
     fruit_sv = f'{t_fruit.get("pred", 0):.0f}<span style="font-size:14px;color:var(--ink-3);"> 개</span>' if t_fruit else "—"
-    fruit_sx = f'최근 조사({summary["latest_date"]}) 환경 기준'
-    if t_fruit:
-        fruit_sx += f'<br>R² {t_fruit["r2"]:.2f}'
-        if t_fruit.get("actual") is not None:
-            fruit_sx += f' · 실측 {t_fruit["actual"]:.0f}개'
-        fruit_sx += f'<br>작기 누적 예측 약 {summary["projected_fruit_total"]:,}개'
-
-    train_note = (
-        f"참조 {info['ref_farms']}농가 {info['ref_rows']:,}건 사전 학습 · 업로드 {info['upload_rows']:,}건 예측"
-        if info.get("ref_rows")
-        else "사전 학습 모델 없음"
+    fruit_sx = (
+        f'<span style="color:var(--ink-3);">모델 추정치</span> · {summary["latest_date"]} · {week}주 환경'
+        if t_fruit else ""
     )
+    if t_fruit:
+        fruit_sx += f'<br>학습 검증 R² {t_fruit["r2"]:.2f}'
+        if t_fruit.get("actual") is not None:
+            fruit_sx += f' · 동일 조사일 실측 {t_fruit["actual"]:.0f}개'
+        fruit_sx += (
+            f'<br><span style="color:var(--ink-3);">작기 누적 추정</span> '
+            f'약 {summary["projected_fruit_total"]:,}개'
+            f' <span style="font-size:11px;">(누계−마지막 실측+모델 추정)</span>'
+        )
+
+    if info.get("ref_rows"):
+        ref_label = (
+            f"참조 {info['ref_farms']}농가 {info['ref_rows']:,}건"
+            if info.get("ref_farms")
+            else f"참조 {info['ref_rows']:,}건"
+        )
+        train_note = f"{ref_label} 사전 학습 · 업로드 최근 조사 1행 추정"
+    else:
+        train_note = "사전 학습 모델 없음"
 
     st.markdown(
         f"""
         <div class="forecast-model">
-          <p class="model-head">🤖 RandomForest 모델 예측 · {train_note}</p>
+          <p class="model-head">🤖 RandomForest · {train_note}</p>
+          <p class="subnote" style="margin:0 0 12px;color:var(--ink-3);">
+            상단 3개 카드 = 표준곡선·누계 <b>참고 전망</b> &nbsp;|&nbsp;
+            아래 3개 = 사전 학습 모델 <b>추정치</b> (다음 조사 예측 아님)
+          </p>
           <div class="simple-grid">
             <div class="scard model">
               <div style="font-size:24px;">📈</div>
-              <div class="sl">모델 예측 · 수확수</div>
+              <div class="sl">모델 추정 · 수확수</div>
               <div class="sv">{harvest_sv}</div>
               <div class="sx">{harvest_sx}</div>
             </div>
             <div class="scard model">
               <div style="font-size:24px;">🌿</div>
-              <div class="sl">모델 예측 · 생육 지연</div>
+              <div class="sl">모델 추정 · 생육 지연</div>
               <div class="sv">{delay_sv}</div>
               <div class="sx">{delay_sx}</div>
             </div>
             <div class="scard model">
               <div style="font-size:24px;">🍅</div>
-              <div class="sl">모델 예측 · 착과수</div>
+              <div class="sl">모델 추정 · 착과수</div>
               <div class="sv">{fruit_sv}</div>
               <div class="sx">{fruit_sx}</div>
             </div>
           </div>
           <p class="subnote" style="margin-top:13px;">
-            ※ 참조 데이터(`data/생육`·`환경`·`일사량`)와 업로드 데이터로 학습한 RandomForest가
-            <b>최근 조사일({summary["latest_date"]})의 {week}주 환경</b>을 입력으로 예측한 값입니다.
+            ※ <code>models/</code>에 저장된 RandomForest를 불러와
+            <b>최근 조사일({summary["latest_date"]})</b>의 <b>{week}주 환경</b> 1행만 입력해 추정합니다.
+            실행 시 재학습하지 않으며, R²는 참조 데이터로 <b>사전 학습·검증</b>할 때의 지표입니다.
+            수확수·착과수 숫자는 <b>다음 조사 예측이 아닌 모델 추정치</b>이고,
+            생육 지연은 <b>모델이 추정한 초장</b>을 표준 곡선과 비교한 값입니다.
           </p>
         </div>
         """,
@@ -1906,7 +1925,7 @@ def run_desktop_ui(render_xai_fn):
                       <div class="sv">약 {fruit_total}<span style="font-size:14px;color:var(--ink-3);">개</span></div>
                       <div class="sx">현재 누계 기준</div></div>
                   </div>
-                  <p class="subnote" style="margin-top:13px;">⚠️ 컴퓨터가 과거 데이터로 추정한 미래 값입니다. 현장 관찰을 우선하세요.</p>
+                  <p class="subnote" style="margin-top:13px;">⚠️ 표준 곡선·업로드 누계 기반 <b>참고 전망</b>입니다. 아래 RandomForest 블록과 별개이며, 현장 관찰을 우선하세요.</p>
                 </div>""",
                 unsafe_allow_html=True,
             )

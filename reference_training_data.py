@@ -436,14 +436,14 @@ def build_model_forecast_summary(
             max(0, fruit_total - targets["착과수"]["actual"] + targets["착과수"]["pred"])
         )
 
-    harvest_note = "최근 환경 유지 시 다음 조사 기준"
+    harvest_note = "동일 조사일 환경 패턴 기준 모델 추정"
     if "수확수" in targets:
         pred_h = targets["수확수"]["pred"]
         act_h = targets["수확수"]["actual"]
         if act_h is not None and pred_h > act_h * 1.05:
-            harvest_note = "모델상 수확 증가 추세"
+            harvest_note = "모델 추정이 실측보다 높음 (증가 추세)"
         elif act_h is not None and pred_h < act_h * 0.95:
-            harvest_note = "모델상 수확 둔화 추세"
+            harvest_note = "모델 추정이 실측보다 낮음 (둔화 추세)"
 
     return {
         "info": info,
