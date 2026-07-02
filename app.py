@@ -1821,6 +1821,8 @@ def generate_comprehensive_report(
 # -------------------------------------------------------------
 def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, sensor_df=None, yield_df=None):
     """예측 탭 expander — 기존 XAI·모델 분석 파이프라인."""
+    from reference_training_data import combine_training_data, training_feature_columns
+
     model_options = ["RandomForest", "GradientBoosting", "XGBoost", "LGBM", "GaussianNB"]
     mc1, mc2 = st.columns(2)
     with mc1:
@@ -1828,9 +1830,24 @@ def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, 
     with mc2:
         target_col = st.selectbox("예측 대상", ["수확수", "착과수"] + growth_features, key="xai_target")
 
-    features = [col for col in df.columns if col not in ["조사일자", "수확수", "착과수"] + growth_features]
-    X = df[features].copy().fillna(df[features].mean(numeric_only=True))
-    y = df[target_col].copy()
+    with st.spinner("참조 데이터(data/생육·환경·일사량)를 학습 테이블에 반영하는 중…"):
+        train_df, train_week_dfs, train_info = combine_training_data(
+            df, week_dfs, selected_week, growth_features
+        )
+
+    if train_info["ref_rows"] > 0:
+        st.info(
+            f"모델 학습 데이터: **업로드 {train_info['upload_rows']:,}건** + "
+            f"**참조 농가 {train_info['ref_farms']}곳 {train_info['ref_rows']:,}건** "
+            f"(총 {train_info['total_rows']:,}건). "
+            "위 전망 카드의 **모델 예측** 블록과 동일한 학습 데이터입니다."
+        )
+    else:
+        st.caption("참조 학습 데이터를 불러오지 못해 업로드 데이터만으로 모델을 학습합니다.")
+
+    features = training_feature_columns(train_df, growth_features)
+    X = train_df[features].copy().fillna(train_df[features].mean(numeric_only=True))
+    y = train_df[target_col].copy()
     valid_mask = y.notna()
     X = X.loc[valid_mask].copy()
     y = y.loc[valid_mask].copy()
@@ -1852,7 +1869,7 @@ def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, 
     ])
 
     _run_legacy_xai_body(
-        df=df, week_dfs=week_dfs, selected_week=selected_week,
+        df=train_df, week_dfs=train_week_dfs, selected_week=selected_week,
         growth_features=growth_features, model_choice=model_choice,
         target_col=target_col, features=features, model=model,
         X_train=X_train, X_test=X_test, metrics=metrics,
@@ -1862,6 +1879,8 @@ def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, 
 def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_choice,
                          target_col, features, model, X_train, X_test, metrics):
     """기존 XAI 분석 본문 (SHAP · Counterfactual · ICE · ALE · 리포트)."""
+    from reference_training_data import training_feature_columns
+
     crop_name = st.session_state.get("dims_crop", "토마토")
     _ = crop_name  # legacy compat
 
@@ -1877,10 +1896,7 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
 
             wk_df = week_dfs[wk].copy()
 
-            wk_features = [
-                c for c in wk_df.columns
-                if c not in ["조사일자", "수확수", "착과수"] + growth_features
-            ]
+            wk_features = training_feature_columns(wk_df, growth_features)
 
             X_wk = wk_df[wk_features].copy()
             X_wk = X_wk.fillna(X_wk.mean(numeric_only=True))
@@ -2059,7 +2075,7 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
         # 시간 순서 정렬 (매우 중요)
         df_cv = df.sort_values("조사일자").reset_index(drop=True)
 
-        features = [col for col in df_cv.columns if col not in ["조사일자", "수확수", "착과수"] + growth_features]
+        features = training_feature_columns(df_cv, growth_features)
 
         X_cv = df_cv[features].copy().fillna(df_cv[features].mean(numeric_only=True))
         y_cv = df_cv[target_col].copy()
@@ -2208,10 +2224,10 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
             merged_df = week_dfs[1][["조사일자", "수확수", "착과수"] + growth_features].copy()
             for week in range(1, 8):
                 wk_df = week_dfs[week].copy()
-                add_cols = [c for c in wk_df.columns if c not in ["조사일자", "수확수", "착과수"] + growth_features]
+                add_cols = training_feature_columns(wk_df, growth_features)
                 merged_df = merged_df.merge(wk_df[["조사일자"] + add_cols], on="조사일자", how="left")
 
-            temporal_features = [c for c in merged_df.columns if c not in ["조사일자", "수확수", "착과수"] + growth_features]
+            temporal_features = training_feature_columns(merged_df, growth_features)
             mX = merged_df[temporal_features].copy().fillna(merged_df[temporal_features].mean(numeric_only=True))
             my = merged_df[target_col].copy()
             valid_mask2 = my.notna()

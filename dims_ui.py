@@ -150,6 +150,9 @@ section[data-testid="stMain"]{overflow:unset!important;}
 .rda-result-scroll .rda-result-tbl td{white-space:nowrap;}
 .judge.ok{color:var(--ok);font-weight:700} .judge.warn{color:var(--warn);font-weight:700} .judge.risk{color:var(--risk);font-weight:700}
 .forecast{border:1.5px dashed var(--line);border-radius:14px;padding:18px;background:#FAFBFC;margin-top:18px;}
+.forecast-model{border:1.5px dashed var(--accent);border-radius:14px;padding:18px;background:#F3F7FB;margin-top:22px;}
+.forecast-model .model-head{font-size:13px;font-weight:700;color:var(--ink-2);margin:0 0 14px;}
+.scard.model .sv{color:#3D6B9A;}
 .simple-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
 @media(max-width:880px){.simple-grid{grid-template-columns:1fr;}}
 .scard{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 20px;box-shadow:var(--shadow);text-align:center;}
@@ -1385,6 +1388,124 @@ def render_growth_timeseries_section(df, date_col: str = "조사일자", key_pre
     st.markdown("</div>", unsafe_allow_html=True)
 
 
+def _upload_forecast_cache_key(upload_df: pd.DataFrame, selected_week: int, fruit_total: int) -> str:
+    frame = upload_df.copy()
+    frame["조사일자"] = pd.to_datetime(frame["조사일자"], errors="coerce")
+    frame = frame.dropna(subset=["조사일자"]).sort_values("조사일자")
+    if frame.empty:
+        return f"empty-{selected_week}-{fruit_total}"
+    latest = frame.iloc[-1]
+    env_cols = sorted(c for c in frame.columns if "주평균" in c or "주평균" in str(c))
+    env_sig = tuple(
+        round(float(latest[c]), 3) if c in latest.index and pd.notna(latest[c]) else None
+        for c in env_cols[:7]
+    )
+    return f"{len(frame)}|{latest['조사일자'].date()}|{selected_week}|{fruit_total}|{env_sig}"
+
+
+def render_model_forecast_section(
+    upload_df,
+    week_dfs: dict,
+    selected_week: int,
+    growth_features: list[str],
+    fruit_total: int,
+):
+    """기존 전망 카드 아래 — RandomForest 모델 예측 카드."""
+    from reference_training_data import build_model_forecast_summary
+
+    cache_key = _upload_forecast_cache_key(upload_df, selected_week, fruit_total)
+    if (
+        st.session_state.get("model_forecast_cache_key") == cache_key
+        and st.session_state.get("model_forecast_summary")
+    ):
+        summary = st.session_state.model_forecast_summary
+    else:
+        with st.spinner("RandomForest 모델 예측 계산 중… (최초 1회는 참조 데이터 로드로 시간이 걸릴 수 있습니다)"):
+            summary = build_model_forecast_summary(
+                upload_df,
+                week_dfs,
+                selected_week,
+                growth_features,
+                fruit_total=fruit_total,
+            )
+        st.session_state.model_forecast_cache_key = cache_key
+        st.session_state.model_forecast_summary = summary
+
+    if not summary or not summary.get("targets"):
+        st.caption("모델 예측을 계산할 데이터가 부족합니다. 분석 데이터와 참조 폴더를 확인해 주세요.")
+        return
+
+    info = summary["info"]
+    week = summary["selected_week"]
+    targets = summary["targets"]
+    t_harvest = targets.get("수확수", {})
+    t_fruit = targets.get("착과수", {})
+    t_height = targets.get("초장", {})
+    delay_m = summary.get("model_delay_days", 0)
+
+    harvest_sv = f'{t_harvest.get("pred", 0):.0f}<span style="font-size:14px;color:var(--ink-3);"> 개</span>' if t_harvest else "—"
+    harvest_sx = (
+        f'{summary["harvest_note"]}<br>R² {t_harvest["r2"]:.2f} · {week}주 환경'
+        if t_harvest else ""
+    )
+    if t_harvest and t_harvest.get("actual") is not None:
+        harvest_sx += f'<br>실측 {t_harvest["actual"]:.0f}개 → 예측 {t_harvest["pred"]:.0f}개'
+
+    delay_sv = f'{delay_m}<span style="font-size:14px;color:var(--ink-3);">일</span>'
+    delay_sx = "표준 대비 예측 초장 기준"
+    if t_height:
+        delay_sx += f'<br>예측 초장 {t_height["pred"]:.1f}cm · R² {t_height["r2"]:.2f}'
+        if t_height.get("actual") is not None:
+            delay_sx += f' (실측 {t_height["actual"]:.1f}cm)'
+
+    fruit_sv = f'{t_fruit.get("pred", 0):.0f}<span style="font-size:14px;color:var(--ink-3);"> 개</span>' if t_fruit else "—"
+    fruit_sx = f'최근 조사({summary["latest_date"]}) 환경 기준'
+    if t_fruit:
+        fruit_sx += f'<br>R² {t_fruit["r2"]:.2f}'
+        if t_fruit.get("actual") is not None:
+            fruit_sx += f' · 실측 {t_fruit["actual"]:.0f}개'
+        fruit_sx += f'<br>작기 누적 예측 약 {summary["projected_fruit_total"]:,}개'
+
+    train_note = (
+        f"학습 {info['upload_rows']:,}건(업로드) + {info['ref_rows']:,}건(참조 {info['ref_farms']}농가)"
+        if info.get("ref_rows")
+        else f"학습 {info.get('upload_rows', 0):,}건(업로드만)"
+    )
+
+    st.markdown(
+        f"""
+        <div class="forecast-model">
+          <p class="model-head">🤖 RandomForest 모델 예측 · {train_note}</p>
+          <div class="simple-grid">
+            <div class="scard model">
+              <div style="font-size:24px;">📈</div>
+              <div class="sl">모델 예측 · 수확수</div>
+              <div class="sv">{harvest_sv}</div>
+              <div class="sx">{harvest_sx}</div>
+            </div>
+            <div class="scard model">
+              <div style="font-size:24px;">🌿</div>
+              <div class="sl">모델 예측 · 생육 지연</div>
+              <div class="sv">{delay_sv}</div>
+              <div class="sx">{delay_sx}</div>
+            </div>
+            <div class="scard model">
+              <div style="font-size:24px;">🍅</div>
+              <div class="sl">모델 예측 · 착과수</div>
+              <div class="sv">{fruit_sv}</div>
+              <div class="sx">{fruit_sx}</div>
+            </div>
+          </div>
+          <p class="subnote" style="margin-top:13px;">
+            ※ 참조 데이터(`data/생육`·`환경`·`일사량`)와 업로드 데이터로 학습한 RandomForest가
+            <b>최근 조사일({summary["latest_date"]})의 {week}주 환경</b>을 입력으로 예측한 값입니다.
+          </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
 def run_desktop_ui(render_xai_fn):
     import app as core
 
@@ -1785,6 +1906,13 @@ def run_desktop_ui(render_xai_fn):
                   <p class="subnote" style="margin-top:13px;">⚠️ 컴퓨터가 과거 데이터로 추정한 미래 값입니다. 현장 관찰을 우선하세요.</p>
                 </div>""",
                 unsafe_allow_html=True,
+            )
+            render_model_forecast_section(
+                df,
+                week_dfs,
+                selected_week,
+                growth_features,
+                fruit_total,
             )
             with st.expander("상세 모델·XAI 분석 (SHAP · ICE · PDP · ALE)", expanded=False):
                 render_xai_fn(
