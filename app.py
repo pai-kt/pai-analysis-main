@@ -10,10 +10,8 @@ import numpy as np
 from datetime import timedelta
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from xgboost import XGBRegressor
-from lightgbm import LGBMRegressor
-from sklearn.naive_bayes import GaussianNB
+from ml_utils import compute_metrics, make_model, safe_predict
+from rolling_features import build_window_feature_name, compute_rolling_summary
 import shap
 import matplotlib.pyplot as plt
 from sklearn.inspection import PartialDependenceDisplay
@@ -367,39 +365,6 @@ def build_weekly_metric_chart(weekly_df, metric, title, color):
 # -------------------------------------------------------------
 # 공통 유틸
 # -------------------------------------------------------------
-def safe_predict(model, X_input, feature_names):
-    if isinstance(X_input, pd.Series):
-        X_input = pd.DataFrame([X_input])
-    elif isinstance(X_input, np.ndarray):
-        X_input = pd.DataFrame(X_input, columns=feature_names)
-    elif not isinstance(X_input, pd.DataFrame):
-        raise TypeError("X_input은 Series, ndarray, DataFrame 중 하나여야 합니다.")
-
-    X_input = X_input.reindex(columns=feature_names)
-    return model.predict(X_input)
-
-
-def make_model(model_choice: str):
-    if model_choice == "RandomForest":
-        return RandomForestRegressor(random_state=42)
-    if model_choice == "GradientBoosting":
-        return GradientBoostingRegressor(random_state=42)
-    if model_choice == "XGBoost":
-        return XGBRegressor(random_state=42, objective="reg:squarederror")
-    if model_choice == "LGBM":
-        return LGBMRegressor(random_state=42)
-    if model_choice == "GaussianNB":
-        return GaussianNB()
-    raise ValueError("지원하지 않는 모델")
-
-
-def compute_metrics(y_true, y_pred):
-    return {
-        "MSE": mean_squared_error(y_true, y_pred),
-        "MAE": mean_absolute_error(y_true, y_pred),
-        "R2": r2_score(y_true, y_pred),
-    }
-
 
 def feature_importance_table(model, features):
     if hasattr(model, "feature_importances_"):
@@ -438,9 +403,6 @@ def infer_controllable_features(feature_names):
             selected.append(f)
     return selected
 
-
-def build_window_feature_name(week, suffix):
-    return f"{week}주{suffix}"
 
 
 def pick_column_index(columns, candidates, fallback=0):
@@ -1467,144 +1429,6 @@ def environment_zone_reference_table(feature_name):
 
     return pd.DataFrame(rows, columns=["환경구간", "기준", "영향"])
 
-def compute_rolling_summary(sensor_df, yield_df, date_col_sensor, date_col_yield,
-                            temp_col, hum_col, co2_col, solar_col,
-                            harvest_count_col, harvest_weight_col,
-                            growth_cols, week):
-    days = week * 7
-    temp_day_col_name = build_window_feature_name(week, "평균주간온도(08~18시)")
-    temp_night_col_name = build_window_feature_name(week, "평균야간온도(19~07시)")
-    hum_day_col_name = build_window_feature_name(week, "평균주간습도(08~18시)")
-    hum_night_col_name = build_window_feature_name(week, "평균야간습도(19~07시)")
-    co2_day_col_name = build_window_feature_name(week, "평균주간CO₂(08~18시)")
-    co2_night_col_name = build_window_feature_name(week, "평균야간CO₂(19~07시)")
-    solar_col_name = build_window_feature_name(week, "평균누적일사량(1일최대값기준)")
-
-    results = []
-    sensor_dates = pd.to_datetime(sensor_df[date_col_sensor], errors="coerce")
-
-    for _, row in yield_df.iterrows():
-        date = pd.to_datetime(row[date_col_yield], errors="coerce")
-        if pd.isna(date):
-            continue
-        start_date = date - timedelta(days=days)
-        mask = (sensor_dates >= start_date) & (sensor_dates <= date)
-        subset = sensor_df.loc[mask].copy()
-
-        avg_solar = np.nan
-        avg_co2_day = np.nan
-        avg_co2_night = np.nan
-        avg_temp_day = np.nan
-        avg_temp_night = np.nan
-        avg_hum_day = np.nan
-        avg_hum_night = np.nan
-
-        if not subset.empty:
-            # 일별 누적일사량 최대값 사용 (24시간 중 최대값)
-            subset[solar_col] = pd.to_numeric(subset[solar_col], errors="coerce")
-            daily_max_solar = (
-                subset.groupby("date")[solar_col]
-                .max()
-                .reset_index()
-            )
-            if not daily_max_solar.empty:
-                avg_solar = daily_max_solar[solar_col].mean()
-
-            # 주간 평균 CO₂ (08~18시)
-            co2_daytime = subset[
-                (subset["hour"] >= 8) &
-                (subset["hour"] <= 18)
-            ]
-
-            if not co2_daytime.empty:
-                co2_day_mean = co2_daytime.groupby("date")[co2_col].mean().reset_index()
-
-                if not co2_day_mean.empty:
-                    avg_co2_day = pd.to_numeric(
-                        co2_day_mean[co2_col],
-                        errors="coerce"
-                    ).mean()
-
-            # 야간 평균 CO₂ (19~07시)
-            co2_nighttime = subset[
-                (subset["hour"] >= 19) |
-                (subset["hour"] <= 7)
-            ]
-
-            if not co2_nighttime.empty:
-                co2_night_mean = co2_nighttime.groupby("date")[co2_col].mean().reset_index()
-
-                if not co2_night_mean.empty:
-                    avg_co2_night = pd.to_numeric(
-                        co2_night_mean[co2_col],
-                        errors="coerce"
-                    ).mean()
-
-            # 주간 평균온도 (08~18시)
-            temp_daytime = subset[
-                (subset["hour"] >= 8) &
-                (subset["hour"] <= 18)
-            ]
-
-            if not temp_daytime.empty and temp_col in temp_daytime.columns:
-                avg_temp_day = pd.to_numeric(
-                    temp_daytime[temp_col],
-                    errors="coerce"
-                ).mean()
-
-            # 야간 평균온도 (19~07시)
-            temp_nighttime = subset[
-                (subset["hour"] >= 19) |
-                (subset["hour"] <= 7)
-            ]
-
-            if not temp_nighttime.empty and temp_col in temp_nighttime.columns:
-                avg_temp_night = pd.to_numeric(
-                    temp_nighttime[temp_col],
-                    errors="coerce"
-                ).mean()
-
-            # 주간 평균습도 (08~18시)
-            hum_daytime = subset[(subset["hour"] >= 8) & (subset["hour"] <= 18)]
-            if not hum_daytime.empty and hum_col in hum_daytime.columns:
-                avg_hum_day = pd.to_numeric(hum_daytime[hum_col], errors="coerce").mean()
-
-            # 야간 평균습도 (19~07시)
-            hum_nighttime = subset[(subset["hour"] >= 19) | (subset["hour"] <= 7)]
-            if not hum_nighttime.empty and hum_col in hum_nighttime.columns:
-                avg_hum_night = pd.to_numeric(hum_nighttime[hum_col], errors="coerce").mean()
-
-        result_row = {
-            "조사일자": date,
-            "수확수": row[harvest_count_col] if harvest_count_col in row else np.nan,
-            "착과수": row[harvest_weight_col] if harvest_weight_col in row else np.nan,
-            temp_day_col_name: avg_temp_day,
-            temp_night_col_name: avg_temp_night,
-            hum_day_col_name: avg_hum_day,
-            hum_night_col_name: avg_hum_night,
-            co2_day_col_name: avg_co2_day,
-            co2_night_col_name: avg_co2_night,
-            solar_col_name: avg_solar,
-        }
-
-        for gf, col in growth_cols.items():
-            if col and col in row.index:
-                result_row[gf] = row[col]
-            else:
-                result_row[gf] = np.nan
-
-        results.append(result_row)
-
-    out = pd.DataFrame(results)
-    if out.empty or "조사일자" not in out.columns:
-        base_cols = ["조사일자", "수확수", "착과수", temp_day_col_name, temp_night_col_name,
-                     hum_day_col_name, hum_night_col_name, co2_day_col_name, co2_night_col_name, solar_col_name]
-        base_cols += [gf for gf in growth_cols]
-        return pd.DataFrame(columns=base_cols)
-    return out.sort_values("조사일자").reset_index(drop=True)
-
-
-
 
 def explain_environment_timeseries(feature_name, values):
     vals = pd.Series(values).dropna()
@@ -1820,48 +1644,61 @@ def generate_comprehensive_report(
 # UI — A-DIMS 4탭 (HTML v0.04) + 상세 XAI
 # -------------------------------------------------------------
 def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, sensor_df=None, yield_df=None):
-    """예측 탭 expander — 기존 XAI·모델 분석 파이프라인."""
-    from reference_training_data import combine_training_data, training_feature_columns
+    """예측 탭 expander — 저장된 모델 로드 + XAI 분석."""
+    from model_store import FORECAST_TARGETS, load_model_bundle, models_available
+    from reference_training_data import build_reference_week_df, training_feature_columns
 
-    model_options = ["RandomForest", "GradientBoosting", "XGBoost", "LGBM", "GaussianNB"]
+    model_options = ["RandomForest", "XGBoost", "LGBM", "GaussianNB"]
     mc1, mc2 = st.columns(2)
     with mc1:
         model_choice = st.selectbox("모델 선택", model_options, key="xai_model")
     with mc2:
         target_col = st.selectbox("예측 대상", ["수확수", "착과수"] + growth_features, key="xai_target")
 
-    with st.spinner("참조 데이터(data/생육·환경·일사량)를 학습 테이블에 반영하는 중…"):
-        train_df, train_week_dfs, train_info = combine_training_data(
-            df, week_dfs, selected_week, growth_features
+    if not models_available():
+        st.warning(
+            "저장된 모델이 없습니다. 터미널에서 `python train_reference_models.py`를 실행해 "
+            "`models/` 폴더에 모델을 생성해 주세요."
         )
-
-    if train_info["ref_rows"] > 0:
-        st.info(
-            f"모델 학습 데이터: **업로드 {train_info['upload_rows']:,}건** + "
-            f"**참조 농가 {train_info['ref_farms']}곳 {train_info['ref_rows']:,}건** "
-            f"(총 {train_info['total_rows']:,}건). "
-            "위 전망 카드의 **모델 예측** 블록과 동일한 학습 데이터입니다."
-        )
-    else:
-        st.caption("참조 학습 데이터를 불러오지 못해 업로드 데이터만으로 모델을 학습합니다.")
-
-    features = training_feature_columns(train_df, growth_features)
-    X = train_df[features].copy().fillna(train_df[features].mean(numeric_only=True))
-    y = train_df[target_col].copy()
-    valid_mask = y.notna()
-    X = X.loc[valid_mask].copy()
-    y = y.loc[valid_mask].copy()
-    if len(X) < 5:
-        st.warning("XAI 분석을 위한 데이터가 부족합니다.")
         return
 
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = make_model(model_choice)
-    model.fit(X_train, y_train)
-    y_pred = safe_predict(model, X_test, features)
-    metrics = compute_metrics(y_test, y_pred)
+    if target_col not in FORECAST_TARGETS:
+        st.warning(
+            f"저장된 모델은 {', '.join(FORECAST_TARGETS)}만 지원합니다. "
+            "다른 생육 항목은 현재 사전 학습 대상이 아닙니다."
+        )
+        return
 
-    st.markdown(f"**모델 평가** ({selected_week}주 · {target_col})")
+    bundle = load_model_bundle(selected_week, model_choice, target_col)
+    if bundle is None:
+        st.warning(
+            f"{selected_week}주 · {model_choice} · {target_col} 모델 파일이 없습니다. "
+            "`python train_reference_models.py`로 다시 학습해 주세요."
+        )
+        return
+
+    model = bundle["model"]
+    meta = bundle["meta"]
+    features = meta["features"]
+    fill = pd.Series(meta["fill"])
+    metrics = meta["metrics"]
+
+    ref_df = build_reference_week_df(selected_week, growth_features)
+    X_train = ref_df[features].apply(pd.to_numeric, errors="coerce").fillna(fill)
+
+    upload_wk = week_dfs.get(selected_week, df)
+    X_upload = upload_wk[features].apply(pd.to_numeric, errors="coerce").fillna(fill)
+    y_upload = pd.to_numeric(upload_wk[target_col], errors="coerce")
+    valid_mask = y_upload.notna()
+    X_test = X_upload.loc[valid_mask].copy()
+    y_test = y_upload.loc[valid_mask].copy()
+
+    st.info(
+        f"**사전 학습 모델** ({model_choice} · 참조 농가 {meta['n_total']:,}건 학습). "
+        f"업로드 {len(upload_wk):,}건으로 예측·XAI를 수행합니다."
+    )
+
+    st.markdown(f"**모델 평가 (참조 데이터 학습 시)** ({selected_week}주 · {target_col})")
     render_kpi_cards([
         ("MSE", f"{metrics['MSE']:.3f}", "#4E79A7"),
         ("MAE", f"{metrics['MAE']:.3f}", "#4F9D5B"),
@@ -1869,16 +1706,19 @@ def _render_advanced_xai_analysis(df, week_dfs, selected_week, growth_features, 
     ])
 
     _run_legacy_xai_body(
-        df=train_df, week_dfs=train_week_dfs, selected_week=selected_week,
+        df=upload_wk, week_dfs=week_dfs, selected_week=selected_week,
         growth_features=growth_features, model_choice=model_choice,
         target_col=target_col, features=features, model=model,
         X_train=X_train, X_test=X_test, metrics=metrics,
+        model_bundle=bundle,
     )
 
 
 def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_choice,
-                         target_col, features, model, X_train, X_test, metrics):
+                         target_col, features, model, X_train, X_test, metrics,
+                         model_bundle=None):
     """기존 XAI 분석 본문 (SHAP · Counterfactual · ICE · ALE · 리포트)."""
+    from model_store import load_weekly_saved_metrics
     from reference_training_data import training_feature_columns
 
     crop_name = st.session_state.get("dims_crop", "토마토")
@@ -1888,56 +1728,9 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
     # -------------------------------------------------------------
     render_section_header("1~7주 모델 성능 비교", "주차별 예측 성능 변화 추이", "📈", accent="teal")
 
-    weekly_metrics = []
+    weekly_metrics = load_weekly_saved_metrics(model_choice, target_col)
 
     try:
-
-        for wk in range(1, 8):
-
-            wk_df = week_dfs[wk].copy()
-
-            wk_features = training_feature_columns(wk_df, growth_features)
-
-            X_wk = wk_df[wk_features].copy()
-            X_wk = X_wk.fillna(X_wk.mean(numeric_only=True))
-
-            y_wk = wk_df[target_col].copy()
-
-            valid_mask_wk = y_wk.notna()
-
-            X_wk = X_wk.loc[valid_mask_wk].copy()
-            y_wk = y_wk.loc[valid_mask_wk].copy()
-
-            if len(X_wk) < 5:
-                continue
-
-            X_train_wk, X_test_wk, y_train_wk, y_test_wk = train_test_split(
-                X_wk,
-                y_wk,
-                test_size=0.2,
-                random_state=42
-            )
-
-            wk_model = make_model(model_choice)
-
-            wk_model.fit(X_train_wk, y_train_wk)
-
-            preds_wk = safe_predict(
-                wk_model,
-                X_test_wk,
-                wk_features
-            )
-
-            mse_wk = mean_squared_error(y_test_wk, preds_wk)
-            mae_wk = mean_absolute_error(y_test_wk, preds_wk)
-            r2_wk = r2_score(y_test_wk, preds_wk)
-
-            weekly_metrics.append({
-                "Week": wk,
-                "MSE": mse_wk,
-                "MAE": mae_wk,
-                "R2": r2_wk
-            })
 
         if len(weekly_metrics) > 0:
 
@@ -2099,9 +1892,7 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
                 X_test_cv = X_cv.iloc[i:i + 2]
                 y_test_cv = y_cv.iloc[i:i + 2]
 
-                model_cv = make_model(model_choice)
-                model_cv.fit(X_train_cv, y_train_cv)
-
+                model_cv = model
                 preds_cv = safe_predict(model_cv, X_test_cv, features)
 
                 mse_list.append(mean_squared_error(y_test_cv, preds_cv))
@@ -2216,27 +2007,14 @@ def _run_legacy_xai_body(df, week_dfs, selected_week, growth_features, model_cho
         except Exception as e:
             st.error(f"Feature Importance 처리 오류: {e}")
 
-    # Temporal SHAP + Heatmap
+    # Temporal SHAP + Heatmap (사전 학습 모델 — 재학습 없음)
     st.subheader("⏱ Temporal SHAP")
     if shap_values is not None:
         try:
-            # 1~7주 전체 feature로 재학습하여 주차 설명력 계산
-            merged_df = week_dfs[1][["조사일자", "수확수", "착과수"] + growth_features].copy()
-            for week in range(1, 8):
-                wk_df = week_dfs[week].copy()
-                add_cols = training_feature_columns(wk_df, growth_features)
-                merged_df = merged_df.merge(wk_df[["조사일자"] + add_cols], on="조사일자", how="left")
-
-            temporal_features = training_feature_columns(merged_df, growth_features)
-            mX = merged_df[temporal_features].copy().fillna(merged_df[temporal_features].mean(numeric_only=True))
-            my = merged_df[target_col].copy()
-            valid_mask2 = my.notna()
-            mX = mX.loc[valid_mask2].copy()
-            my = my.loc[valid_mask2].copy()
-
-            mX_train, mX_test, my_train, my_test = train_test_split(mX, my, test_size=0.2, random_state=42)
-            temporal_model = make_model(model_choice)
-            temporal_model.fit(mX_train, my_train)
+            temporal_model = model
+            temporal_features = features
+            mX_train = X_train
+            mX_test = X_test if len(X_test) > 0 else X_train.tail(min(20, len(X_train)))
             temporal_explainer = shap.Explainer(temporal_model, mX_train)
             temporal_shap_values = temporal_explainer(mX_test, check_additivity=False)
 

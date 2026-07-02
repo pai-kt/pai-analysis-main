@@ -1420,7 +1420,7 @@ def render_model_forecast_section(
     ):
         summary = st.session_state.model_forecast_summary
     else:
-        with st.spinner("RandomForest 모델 예측 계산 중… (최초 1회는 참조 데이터 로드로 시간이 걸릴 수 있습니다)"):
+        with st.spinner("저장된 RandomForest 모델로 예측 중…"):
             summary = build_model_forecast_summary(
                 upload_df,
                 week_dfs,
@@ -1432,7 +1432,10 @@ def render_model_forecast_section(
         st.session_state.model_forecast_summary = summary
 
     if not summary or not summary.get("targets"):
-        st.caption("모델 예측을 계산할 데이터가 부족합니다. 분석 데이터와 참조 폴더를 확인해 주세요.")
+        st.caption(
+            "모델 예측을 계산할 수 없습니다. `python train_reference_models.py`로 "
+            "`models/` 폴더에 사전 학습 모델을 생성했는지 확인해 주세요."
+        )
         return
 
     info = summary["info"]
@@ -1467,9 +1470,9 @@ def render_model_forecast_section(
         fruit_sx += f'<br>작기 누적 예측 약 {summary["projected_fruit_total"]:,}개'
 
     train_note = (
-        f"학습 {info['upload_rows']:,}건(업로드) + {info['ref_rows']:,}건(참조 {info['ref_farms']}농가)"
+        f"참조 {info['ref_farms']}농가 {info['ref_rows']:,}건 사전 학습 · 업로드 {info['upload_rows']:,}건 예측"
         if info.get("ref_rows")
-        else f"학습 {info.get('upload_rows', 0):,}건(업로드만)"
+        else "사전 학습 모델 없음"
     )
 
     st.markdown(

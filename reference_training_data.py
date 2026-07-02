@@ -193,7 +193,7 @@ def _aggregate_reference_yield(raw: pd.DataFrame, growth_features: list[str]) ->
 
 
 def _build_all_reference_rows(growth_features: list[str]) -> pd.DataFrame:
-    import app as core
+    from rolling_features import compute_rolling_summary
 
     farms = _list_paired_farms()
     solar_df = _load_solar_daily()
@@ -211,7 +211,7 @@ def _build_all_reference_rows(growth_features: list[str]) -> pd.DataFrame:
 
             growth_cols = {gf: gf for gf in growth_features if gf in grow_df.columns}
             for week in range(1, 8):
-                out = core.compute_rolling_summary(
+                out = compute_rolling_summary(
                     env_df,
                     grow_df,
                     "datetime",
@@ -268,10 +268,10 @@ def _load_all_reference_rows(growth_key: tuple[str, ...]) -> pd.DataFrame:
 
 def _slice_week_columns(df: pd.DataFrame, week: int, growth_features: list[str]) -> pd.DataFrame:
     """다주차 캐시에서 해당 주차 환경 컬럼만 남깁니다."""
-    import app as core
+    from rolling_features import build_window_feature_name
 
     env_cols = [
-        core.build_window_feature_name(week, suffix)
+        build_window_feature_name(week, suffix)
         for suffix in [
             "평균주간온도(08~18시)",
             "평균야간온도(19~07시)",
@@ -360,89 +360,31 @@ def training_feature_columns(df: pd.DataFrame, growth_features: list[str]) -> li
     return [col for col in df.columns if col not in exclude]
 
 
-def _predict_latest_row(fitted: dict, latest: pd.Series) -> float:
-    import app as core
-
-    X_latest = latest[fitted["features"]].to_frame().T
-    X_latest = X_latest.apply(pd.to_numeric, errors="coerce").fillna(fitted["fill"])
-    return float(core.safe_predict(fitted["model"], X_latest, fitted["features"])[0])
-
-
-def _fit_and_predict_latest(
-    train_df: pd.DataFrame,
-    growth_features: list[str],
-    target_col: str,
-    latest: pd.Series,
-) -> dict | None:
-    """학습 후 즉시 예측하고 모델 객체는 해제 (메모리 절약)."""
-    from sklearn.model_selection import train_test_split
-    import app as core
-
-    features = training_feature_columns(train_df, growth_features)
-    if target_col not in train_df.columns or not features:
-        return None
-
-    X = train_df[features].copy()
-    fill = X.mean(numeric_only=True)
-    X = X.fillna(fill)
-    y = pd.to_numeric(train_df[target_col], errors="coerce")
-    valid = y.notna()
-    X = X.loc[valid].copy()
-    y = y.loc[valid].copy()
-    if len(X) < 8:
-        return None
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
-    )
-    model = core.make_model("RandomForest")
-    model.fit(X_train, y_train)
-    y_pred = core.safe_predict(model, X_test, features)
-    metrics = core.compute_metrics(y_test, y_pred)
-    pred = float(_predict_latest_row({"model": model, "features": features, "fill": fill}, latest))
-    del model
-    return {
-        "pred": pred,
-        "metrics": metrics,
-        "n_train": len(X_train),
-    }
-
-
-def _model_delay_from_height(
-    pred_height: float,
-    upload_df: pd.DataFrame,
-    latest_date: pd.Timestamp,
-) -> int:
-    from growth_standards import build_growth_standard_curves
-
-    upload_start = pd.to_datetime(upload_df["조사일자"], errors="coerce").min()
-    if pd.isna(upload_start) or pd.isna(latest_date):
-        return 0
-    upload_start = upload_start.normalize()
-    latest_date = pd.to_datetime(latest_date).normalize()
-    rel_week = ((latest_date - upload_start).days // 7) * 7
-    curves, _ = build_growth_standard_curves(upload_start, max_rel_day=rel_week + 7)
-    std = curves.get("초장")
-    if std is None or std.empty:
-        return 0
-    row = std.iloc[(std["rel_week"] - rel_week).abs().argsort()[:1]].iloc[0]
-    p50 = float(row["p50"])
-    if pred_height >= p50:
-        return 0
-    return min(max(int(round((p50 - pred_height) / max(p50 * 0.015, 1))), 0), 45)
-
-
 def build_model_forecast_summary(
     upload_df: pd.DataFrame,
     week_dfs: dict[int, pd.DataFrame],
     selected_week: int,
     growth_features: list[str] | None = None,
     fruit_total: int = 0,
+    model_type: str = "RandomForest",
 ) -> dict | None:
-    """업로드 최신 조사 + 참조 학습 RandomForest → 예측 탭 카드용 요약."""
+    """업로드 최신 조사 + models/ 저장 모델 → 예측 탭 카드용 요약."""
+    import json
+
+    from model_store import (
+        MANIFEST_PATH,
+        load_model_bundle,
+        models_available,
+        predict_upload_latest,
+    )
+
     growth_features = growth_features or DEFAULT_GROWTH_FEATURES
-    frame = upload_df.copy()
-    if frame.empty or "조사일자" not in frame.columns:
+    week_df = week_dfs.get(selected_week)
+    if week_df is None or week_df.empty:
+        return None
+
+    frame = week_df.copy()
+    if "조사일자" not in frame.columns:
         return None
 
     frame["조사일자"] = pd.to_datetime(frame["조사일자"], errors="coerce")
@@ -450,28 +392,30 @@ def build_model_forecast_summary(
     if frame.empty:
         return None
 
-    latest = frame.iloc[-1]
-    latest_date = latest["조사일자"]
-
-    train_df, _, info = combine_training_data(
-        frame, week_dfs, selected_week, growth_features
-    )
-    if train_df.empty:
+    if not models_available():
         return None
+
+    latest_date = frame.iloc[-1]["조사일자"]
+    manifest = {}
+    if MANIFEST_PATH.exists():
+        manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+    sample = load_model_bundle(selected_week, model_type, "착과수")
+    info = {
+        "upload_rows": len(frame),
+        "ref_rows": sample["meta"]["n_total"] if sample else 0,
+        "ref_farms": manifest.get("ref_farms", 0),
+        "total_rows": (sample["meta"]["n_total"] if sample else 0) + len(frame),
+    }
 
     targets: dict[str, dict] = {}
     for target in ("착과수", "수확수", "초장"):
-        result = _fit_and_predict_latest(train_df, growth_features, target, latest)
+        result = predict_upload_latest(frame, selected_week, model_type, target)
         if result is None:
             continue
-        pred = result["pred"]
-        if target in ("수확수", "착과수"):
-            pred = max(0.0, pred)
-        actual_raw = latest.get(target)
-        actual = float(actual_raw) if pd.notna(actual_raw) else None
         targets[target] = {
-            "pred": pred,
-            "actual": actual,
+            "pred": result["pred"],
+            "actual": result["actual"],
             "r2": float(result["metrics"]["R2"]),
             "mae": float(result["metrics"]["MAE"]),
             "n_train": result["n_train"],
@@ -510,3 +454,28 @@ def build_model_forecast_summary(
         "projected_fruit_total": projected_fruit,
         "harvest_note": harvest_note,
     }
+
+
+def _model_delay_from_height(
+    pred_height: float,
+    upload_df: pd.DataFrame,
+    latest_date: pd.Timestamp,
+) -> int:
+    from growth_standards import build_growth_standard_curves
+
+    upload_start = pd.to_datetime(upload_df["조사일자"], errors="coerce").min()
+    if pd.isna(upload_start) or pd.isna(latest_date):
+        return 0
+    upload_start = upload_start.normalize()
+    latest_date = pd.to_datetime(latest_date).normalize()
+    rel_week = ((latest_date - upload_start).days // 7) * 7
+    curves, _ = build_growth_standard_curves(upload_start, max_rel_day=rel_week + 7)
+    std = curves.get("초장")
+    if std is None or std.empty:
+        return 0
+    row = std.iloc[(std["rel_week"] - rel_week).abs().argsort()[:1]].iloc[0]
+    p50 = float(row["p50"])
+    if pred_height >= p50:
+        return 0
+    return min(max(int(round((p50 - pred_height) / max(p50 * 0.015, 1))), 0), 45)
+
