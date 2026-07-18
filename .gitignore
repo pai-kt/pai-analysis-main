@@ -23,3 +23,10 @@ env/
 
 # Streamlit secrets
 .streamlit/secrets.toml
+
+# 대용량 참조 데이터 (로컬 전용)
+data/모델학습/생육/
+data/모델학습/일사량/
+data/모델학습/환경/
+data/모델학습/.growth_ref_trajectories.parquet
+data/모델학습/.reference_training_cache/

@@ -1,592 +1,844 @@
 {
   "models": [
     {
-      "week": 1,
-      "model_type": "RandomForest",
-      "target": "착과수",
-      "r2": 0.06491604370398596,
-      "n_train": 896
-    },
-    {
-      "week": 1,
-      "model_type": "RandomForest",
-      "target": "수확수",
-      "r2": 0.02075139889300326,
-      "n_train": 896
-    },
-    {
-      "week": 1,
-      "model_type": "RandomForest",
-      "target": "초장",
-      "r2": 0.4523865531586191,
-      "n_train": 803
-    },
-    {
-      "week": 1,
-      "model_type": "XGBoost",
-      "target": "착과수",
-      "r2": -0.4460181130897063,
-      "n_train": 896
-    },
-    {
-      "week": 1,
-      "model_type": "XGBoost",
-      "target": "수확수",
-      "r2": -0.7422586184521973,
-      "n_train": 896
-    },
-    {
-      "week": 1,
-      "model_type": "XGBoost",
-      "target": "초장",
-      "r2": 0.491682923749456,
-      "n_train": 803
-    },
-    {
-      "week": 1,
-      "model_type": "LGBM",
-      "target": "착과수",
-      "r2": 0.09949192909531823,
-      "n_train": 896
-    },
-    {
-      "week": 1,
-      "model_type": "LGBM",
-      "target": "수확수",
-      "r2": -0.07405193468738891,
-      "n_train": 896
-    },
-    {
-      "week": 1,
-      "model_type": "LGBM",
-      "target": "초장",
-      "r2": 0.44432965707382255,
-      "n_train": 803
-    },
-    {
-      "week": 1,
-      "model_type": "GaussianNB",
-      "target": "착과수",
-      "r2": 0.054209897541872,
-      "n_train": 896
-    },
-    {
-      "week": 1,
-      "model_type": "GaussianNB",
-      "target": "수확수",
-      "r2": -0.22057173521790707,
-      "n_train": 896
-    },
-    {
-      "week": 1,
-      "model_type": "GaussianNB",
-      "target": "초장",
-      "r2": 0.14493596564624123,
-      "n_train": 803
-    },
-    {
-      "week": 2,
-      "model_type": "RandomForest",
-      "target": "착과수",
-      "r2": 0.00387975739283819,
-      "n_train": 896
-    },
-    {
-      "week": 2,
-      "model_type": "RandomForest",
-      "target": "수확수",
-      "r2": -0.19648212860822056,
-      "n_train": 896
-    },
-    {
-      "week": 2,
-      "model_type": "RandomForest",
-      "target": "초장",
-      "r2": 0.5427732976639088,
-      "n_train": 803
-    },
-    {
-      "week": 2,
-      "model_type": "XGBoost",
-      "target": "착과수",
-      "r2": 0.00711942860252246,
-      "n_train": 896
-    },
-    {
-      "week": 2,
-      "model_type": "XGBoost",
-      "target": "수확수",
-      "r2": -0.14298198542455243,
-      "n_train": 896
-    },
-    {
-      "week": 2,
-      "model_type": "XGBoost",
-      "target": "초장",
-      "r2": 0.5844406556792594,
-      "n_train": 803
-    },
-    {
-      "week": 2,
-      "model_type": "LGBM",
-      "target": "착과수",
-      "r2": 0.11362348359735863,
-      "n_train": 896
-    },
-    {
-      "week": 2,
-      "model_type": "LGBM",
-      "target": "수확수",
-      "r2": -0.047855779269628584,
-      "n_train": 896
-    },
-    {
-      "week": 2,
-      "model_type": "LGBM",
-      "target": "초장",
-      "r2": 0.5649316345410851,
-      "n_train": 803
-    },
-    {
-      "week": 2,
-      "model_type": "GaussianNB",
-      "target": "착과수",
-      "r2": 0.08759542867927117,
-      "n_train": 896
-    },
-    {
-      "week": 2,
-      "model_type": "GaussianNB",
-      "target": "수확수",
-      "r2": -0.2667779322928865,
-      "n_train": 896
-    },
-    {
-      "week": 2,
-      "model_type": "GaussianNB",
-      "target": "초장",
-      "r2": 0.15838044365750392,
-      "n_train": 803
-    },
-    {
       "week": 3,
       "model_type": "RandomForest",
       "target": "착과수",
-      "r2": 0.1179621119960983,
-      "n_train": 896
+      "r2": 0.11293060278686318,
+      "n_train": 343
     },
     {
       "week": 3,
       "model_type": "RandomForest",
       "target": "수확수",
-      "r2": -0.012294991892673357,
-      "n_train": 896
+      "r2": 0.022079471797597727,
+      "n_train": 343
     },
     {
       "week": 3,
       "model_type": "RandomForest",
       "target": "초장",
-      "r2": 0.6435172921966077,
-      "n_train": 803
+      "r2": 0.7123806598186231,
+      "n_train": 321
     },
     {
       "week": 3,
       "model_type": "XGBoost",
       "target": "착과수",
-      "r2": -0.047433812034391565,
-      "n_train": 896
+      "r2": 0.08938272935078151,
+      "n_train": 343
     },
     {
       "week": 3,
       "model_type": "XGBoost",
       "target": "수확수",
-      "r2": -0.3166992109372351,
-      "n_train": 896
+      "r2": 0.030037404235391585,
+      "n_train": 343
     },
     {
       "week": 3,
       "model_type": "XGBoost",
       "target": "초장",
-      "r2": 0.7005730338372036,
-      "n_train": 803
+      "r2": 0.6247853679167459,
+      "n_train": 321
     },
     {
       "week": 3,
       "model_type": "LGBM",
       "target": "착과수",
-      "r2": -0.08658257368902444,
-      "n_train": 896
+      "r2": 0.07712959795395713,
+      "n_train": 343
     },
     {
       "week": 3,
       "model_type": "LGBM",
       "target": "수확수",
-      "r2": -0.11077661301412567,
-      "n_train": 896
+      "r2": 0.1020105614360719,
+      "n_train": 343
     },
     {
       "week": 3,
       "model_type": "LGBM",
       "target": "초장",
-      "r2": 0.6762484078671978,
-      "n_train": 803
+      "r2": 0.6844496881021692,
+      "n_train": 321
     },
     {
       "week": 3,
       "model_type": "GaussianNB",
       "target": "착과수",
-      "r2": 0.16043844895632653,
-      "n_train": 896
+      "r2": 0.020876764012377702,
+      "n_train": 343
     },
     {
       "week": 3,
       "model_type": "GaussianNB",
       "target": "수확수",
-      "r2": -0.1723771395537066,
-      "n_train": 896
+      "r2": -0.14787471781404204,
+      "n_train": 343
     },
     {
       "week": 3,
       "model_type": "GaussianNB",
       "target": "초장",
-      "r2": 0.24575158105343065,
-      "n_train": 803
+      "r2": 0.5275586082225177,
+      "n_train": 321
     },
     {
       "week": 4,
       "model_type": "RandomForest",
       "target": "착과수",
-      "r2": 0.17339467653018004,
-      "n_train": 896
+      "r2": 0.16312443659517695,
+      "n_train": 343
     },
     {
       "week": 4,
       "model_type": "RandomForest",
       "target": "수확수",
-      "r2": 0.058281591496491814,
-      "n_train": 896
+      "r2": 0.129009602618967,
+      "n_train": 343
     },
     {
       "week": 4,
       "model_type": "RandomForest",
       "target": "초장",
-      "r2": 0.7217515973475775,
-      "n_train": 803
+      "r2": 0.7619572689011166,
+      "n_train": 321
     },
     {
       "week": 4,
       "model_type": "XGBoost",
       "target": "착과수",
-      "r2": 0.055970396399043665,
-      "n_train": 896
+      "r2": 0.0906090266152777,
+      "n_train": 343
     },
     {
       "week": 4,
       "model_type": "XGBoost",
       "target": "수확수",
-      "r2": -0.07041260542413275,
-      "n_train": 896
+      "r2": 0.21942346776328914,
+      "n_train": 343
     },
     {
       "week": 4,
       "model_type": "XGBoost",
       "target": "초장",
-      "r2": 0.7595190435859529,
-      "n_train": 803
+      "r2": 0.7076897186850111,
+      "n_train": 321
     },
     {
       "week": 4,
       "model_type": "LGBM",
       "target": "착과수",
-      "r2": 0.0038410252088294516,
-      "n_train": 896
+      "r2": 0.2279812801196034,
+      "n_train": 343
     },
     {
       "week": 4,
       "model_type": "LGBM",
       "target": "수확수",
-      "r2": -0.09716046972572046,
-      "n_train": 896
+      "r2": 0.25220783480288345,
+      "n_train": 343
     },
     {
       "week": 4,
       "model_type": "LGBM",
       "target": "초장",
-      "r2": 0.7116677440987547,
-      "n_train": 803
+      "r2": 0.7770659624941324,
+      "n_train": 321
     },
     {
       "week": 4,
       "model_type": "GaussianNB",
       "target": "착과수",
-      "r2": 0.03323942510195643,
-      "n_train": 896
+      "r2": 0.0172812288245916,
+      "n_train": 343
     },
     {
       "week": 4,
       "model_type": "GaussianNB",
       "target": "수확수",
-      "r2": -0.22799994466790552,
-      "n_train": 896
+      "r2": -0.13372951983584258,
+      "n_train": 343
     },
     {
       "week": 4,
       "model_type": "GaussianNB",
       "target": "초장",
-      "r2": 0.2636074389580949,
-      "n_train": 803
+      "r2": 0.564654212910898,
+      "n_train": 321
     },
     {
       "week": 5,
       "model_type": "RandomForest",
       "target": "착과수",
-      "r2": 0.22477070918962017,
-      "n_train": 896
+      "r2": 0.15255765286084255,
+      "n_train": 343
     },
     {
       "week": 5,
       "model_type": "RandomForest",
       "target": "수확수",
-      "r2": 0.08052360339013165,
-      "n_train": 896
+      "r2": 0.1241434959742419,
+      "n_train": 343
     },
     {
       "week": 5,
       "model_type": "RandomForest",
       "target": "초장",
-      "r2": 0.7633852470607311,
-      "n_train": 803
+      "r2": 0.8030025518179411,
+      "n_train": 321
     },
     {
       "week": 5,
       "model_type": "XGBoost",
       "target": "착과수",
-      "r2": -0.14753491563911925,
-      "n_train": 896
+      "r2": 0.25842723726703953,
+      "n_train": 343
     },
     {
       "week": 5,
       "model_type": "XGBoost",
       "target": "수확수",
-      "r2": -0.045380580286460415,
-      "n_train": 896
+      "r2": 0.20014756838140646,
+      "n_train": 343
     },
     {
       "week": 5,
       "model_type": "XGBoost",
       "target": "초장",
-      "r2": 0.7747913916708732,
-      "n_train": 803
+      "r2": 0.7791754353019524,
+      "n_train": 321
     },
     {
       "week": 5,
       "model_type": "LGBM",
       "target": "착과수",
-      "r2": 0.1184555793267782,
-      "n_train": 896
+      "r2": 0.1964506676044555,
+      "n_train": 343
     },
     {
       "week": 5,
       "model_type": "LGBM",
       "target": "수확수",
-      "r2": -0.031778051039144994,
-      "n_train": 896
+      "r2": 0.18421219307311232,
+      "n_train": 343
     },
     {
       "week": 5,
       "model_type": "LGBM",
       "target": "초장",
-      "r2": 0.7764404911607807,
-      "n_train": 803
+      "r2": 0.8733889235743049,
+      "n_train": 321
     },
     {
       "week": 5,
       "model_type": "GaussianNB",
       "target": "착과수",
-      "r2": -0.04728900464773167,
-      "n_train": 896
+      "r2": 0.01946167703499535,
+      "n_train": 343
     },
     {
       "week": 5,
       "model_type": "GaussianNB",
       "target": "수확수",
-      "r2": -0.2633702653494774,
-      "n_train": 896
+      "r2": -0.15304496310471616,
+      "n_train": 343
     },
     {
       "week": 5,
       "model_type": "GaussianNB",
       "target": "초장",
-      "r2": 0.29519400475773294,
-      "n_train": 803
+      "r2": 0.585382621889186,
+      "n_train": 321
     },
     {
       "week": 6,
       "model_type": "RandomForest",
       "target": "착과수",
-      "r2": 0.20353375323022138,
-      "n_train": 896
+      "r2": 0.16930125135623308,
+      "n_train": 343
     },
     {
       "week": 6,
       "model_type": "RandomForest",
       "target": "수확수",
-      "r2": 0.033791103227531094,
-      "n_train": 896
+      "r2": 0.14434648927322702,
+      "n_train": 343
     },
     {
       "week": 6,
       "model_type": "RandomForest",
       "target": "초장",
-      "r2": 0.8075517503054457,
-      "n_train": 803
+      "r2": 0.8216407641342972,
+      "n_train": 321
     },
     {
       "week": 6,
       "model_type": "XGBoost",
       "target": "착과수",
-      "r2": -0.07258820068149752,
-      "n_train": 896
+      "r2": 0.16852297767027447,
+      "n_train": 343
     },
     {
       "week": 6,
       "model_type": "XGBoost",
       "target": "수확수",
-      "r2": 0.011885870637613927,
-      "n_train": 896
+      "r2": 0.1031363834763046,
+      "n_train": 343
     },
     {
       "week": 6,
       "model_type": "XGBoost",
       "target": "초장",
-      "r2": 0.8621929801125066,
-      "n_train": 803
+      "r2": 0.7771413354915979,
+      "n_train": 321
     },
     {
       "week": 6,
       "model_type": "LGBM",
       "target": "착과수",
-      "r2": 0.11629899043013892,
-      "n_train": 896
+      "r2": 0.18284445773738778,
+      "n_train": 343
     },
     {
       "week": 6,
       "model_type": "LGBM",
       "target": "수확수",
-      "r2": -0.10954101602123334,
-      "n_train": 896
+      "r2": 0.1918873212114902,
+      "n_train": 343
     },
     {
       "week": 6,
       "model_type": "LGBM",
       "target": "초장",
-      "r2": 0.8190183924190196,
-      "n_train": 803
+      "r2": 0.8238550728779971,
+      "n_train": 321
     },
     {
       "week": 6,
       "model_type": "GaussianNB",
       "target": "착과수",
-      "r2": -0.1912205747233755,
-      "n_train": 896
+      "r2": 0.021037012520742637,
+      "n_train": 343
     },
     {
       "week": 6,
       "model_type": "GaussianNB",
       "target": "수확수",
-      "r2": -0.25737907938109483,
-      "n_train": 896
+      "r2": -0.12526021949745636,
+      "n_train": 343
     },
     {
       "week": 6,
       "model_type": "GaussianNB",
       "target": "초장",
-      "r2": 0.3349790099178932,
-      "n_train": 803
+      "r2": 0.5971810011230265,
+      "n_train": 321
     },
     {
       "week": 7,
       "model_type": "RandomForest",
       "target": "착과수",
-      "r2": 0.2533140821419607,
-      "n_train": 896
+      "r2": 0.20352006196911676,
+      "n_train": 343
     },
     {
       "week": 7,
       "model_type": "RandomForest",
       "target": "수확수",
-      "r2": 0.056114494004342874,
-      "n_train": 896
+      "r2": 0.21159351809861782,
+      "n_train": 343
     },
     {
       "week": 7,
       "model_type": "RandomForest",
       "target": "초장",
-      "r2": 0.8201869361615607,
-      "n_train": 803
+      "r2": 0.8574596041218407,
+      "n_train": 321
     },
     {
       "week": 7,
       "model_type": "XGBoost",
       "target": "착과수",
-      "r2": 0.05389339890871769,
-      "n_train": 896
+      "r2": 0.1139670400243813,
+      "n_train": 343
     },
     {
       "week": 7,
       "model_type": "XGBoost",
       "target": "수확수",
-      "r2": 0.0723063420505925,
-      "n_train": 896
+      "r2": 0.17554420451066666,
+      "n_train": 343
     },
     {
       "week": 7,
       "model_type": "XGBoost",
       "target": "초장",
-      "r2": 0.862998333631078,
-      "n_train": 803
+      "r2": 0.8364891484968497,
+      "n_train": 321
     },
     {
       "week": 7,
       "model_type": "LGBM",
       "target": "착과수",
-      "r2": 0.05003090431077073,
-      "n_train": 896
+      "r2": 0.17369380313089733,
+      "n_train": 343
     },
     {
       "week": 7,
       "model_type": "LGBM",
       "target": "수확수",
-      "r2": -0.1416610325247334,
-      "n_train": 896
+      "r2": 0.19730144817152517,
+      "n_train": 343
     },
     {
       "week": 7,
       "model_type": "LGBM",
       "target": "초장",
-      "r2": 0.8359353459125658,
-      "n_train": 803
+      "r2": 0.8611886323799401,
+      "n_train": 321
     },
     {
       "week": 7,
       "model_type": "GaussianNB",
       "target": "착과수",
-      "r2": -0.34840963393041546,
-      "n_train": 896
+      "r2": 0.02231591839215319,
+      "n_train": 343
     },
     {
       "week": 7,
       "model_type": "GaussianNB",
       "target": "수확수",
-      "r2": -0.24718562525679388,
-      "n_train": 896
+      "r2": 0.06581441916814867,
+      "n_train": 343
     },
     {
       "week": 7,
       "model_type": "GaussianNB",
       "target": "초장",
-      "r2": 0.3751185982596804,
-      "n_train": 803
+      "r2": 0.6188043548005322,
+      "n_train": 321
+    },
+    {
+      "week": 8,
+      "model_type": "RandomForest",
+      "target": "착과수",
+      "r2": 0.21527375754753486,
+      "n_train": 343
+    },
+    {
+      "week": 8,
+      "model_type": "RandomForest",
+      "target": "수확수",
+      "r2": 0.22695757554398877,
+      "n_train": 343
+    },
+    {
+      "week": 8,
+      "model_type": "RandomForest",
+      "target": "초장",
+      "r2": 0.8645217918458916,
+      "n_train": 321
+    },
+    {
+      "week": 8,
+      "model_type": "XGBoost",
+      "target": "착과수",
+      "r2": -0.06725588075659883,
+      "n_train": 343
+    },
+    {
+      "week": 8,
+      "model_type": "XGBoost",
+      "target": "수확수",
+      "r2": 0.16629767467306933,
+      "n_train": 343
+    },
+    {
+      "week": 8,
+      "model_type": "XGBoost",
+      "target": "초장",
+      "r2": 0.8049198913324402,
+      "n_train": 321
+    },
+    {
+      "week": 8,
+      "model_type": "LGBM",
+      "target": "착과수",
+      "r2": 0.15866358495276345,
+      "n_train": 343
+    },
+    {
+      "week": 8,
+      "model_type": "LGBM",
+      "target": "수확수",
+      "r2": 0.2047990885203329,
+      "n_train": 343
+    },
+    {
+      "week": 8,
+      "model_type": "LGBM",
+      "target": "초장",
+      "r2": 0.8359611303364182,
+      "n_train": 321
+    },
+    {
+      "week": 8,
+      "model_type": "GaussianNB",
+      "target": "착과수",
+      "r2": 0.020152511430749698,
+      "n_train": 343
+    },
+    {
+      "week": 8,
+      "model_type": "GaussianNB",
+      "target": "수확수",
+      "r2": 0.11260148084762966,
+      "n_train": 343
+    },
+    {
+      "week": 8,
+      "model_type": "GaussianNB",
+      "target": "초장",
+      "r2": 0.6332358125811999,
+      "n_train": 321
+    },
+    {
+      "week": 9,
+      "model_type": "RandomForest",
+      "target": "착과수",
+      "r2": 0.24065056750026537,
+      "n_train": 343
+    },
+    {
+      "week": 9,
+      "model_type": "RandomForest",
+      "target": "수확수",
+      "r2": 0.2770487384137339,
+      "n_train": 343
+    },
+    {
+      "week": 9,
+      "model_type": "RandomForest",
+      "target": "초장",
+      "r2": 0.9004633930619604,
+      "n_train": 321
+    },
+    {
+      "week": 9,
+      "model_type": "XGBoost",
+      "target": "착과수",
+      "r2": 0.1176437709642284,
+      "n_train": 343
+    },
+    {
+      "week": 9,
+      "model_type": "XGBoost",
+      "target": "수확수",
+      "r2": 0.21661226751331042,
+      "n_train": 343
+    },
+    {
+      "week": 9,
+      "model_type": "XGBoost",
+      "target": "초장",
+      "r2": 0.8969291800147964,
+      "n_train": 321
+    },
+    {
+      "week": 9,
+      "model_type": "LGBM",
+      "target": "착과수",
+      "r2": 0.15628806134497952,
+      "n_train": 343
+    },
+    {
+      "week": 9,
+      "model_type": "LGBM",
+      "target": "수확수",
+      "r2": 0.20209658164837008,
+      "n_train": 343
+    },
+    {
+      "week": 9,
+      "model_type": "LGBM",
+      "target": "초장",
+      "r2": 0.9052996628259803,
+      "n_train": 321
+    },
+    {
+      "week": 9,
+      "model_type": "GaussianNB",
+      "target": "착과수",
+      "r2": 0.016440825321790586,
+      "n_train": 343
+    },
+    {
+      "week": 9,
+      "model_type": "GaussianNB",
+      "target": "수확수",
+      "r2": 0.13839348133632923,
+      "n_train": 343
+    },
+    {
+      "week": 9,
+      "model_type": "GaussianNB",
+      "target": "초장",
+      "r2": 0.6287551546638355,
+      "n_train": 321
+    },
+    {
+      "week": 10,
+      "model_type": "RandomForest",
+      "target": "착과수",
+      "r2": 0.2526695407333589,
+      "n_train": 343
+    },
+    {
+      "week": 10,
+      "model_type": "RandomForest",
+      "target": "수확수",
+      "r2": 0.292447985856101,
+      "n_train": 343
+    },
+    {
+      "week": 10,
+      "model_type": "RandomForest",
+      "target": "초장",
+      "r2": 0.8765180961948746,
+      "n_train": 321
+    },
+    {
+      "week": 10,
+      "model_type": "XGBoost",
+      "target": "착과수",
+      "r2": 0.1118137460454135,
+      "n_train": 343
+    },
+    {
+      "week": 10,
+      "model_type": "XGBoost",
+      "target": "수확수",
+      "r2": 0.20056145205764353,
+      "n_train": 343
+    },
+    {
+      "week": 10,
+      "model_type": "XGBoost",
+      "target": "초장",
+      "r2": 0.8585560688612114,
+      "n_train": 321
+    },
+    {
+      "week": 10,
+      "model_type": "LGBM",
+      "target": "착과수",
+      "r2": 0.11731605548047241,
+      "n_train": 343
+    },
+    {
+      "week": 10,
+      "model_type": "LGBM",
+      "target": "수확수",
+      "r2": 0.21545754155836416,
+      "n_train": 343
+    },
+    {
+      "week": 10,
+      "model_type": "LGBM",
+      "target": "초장",
+      "r2": 0.9205619486893449,
+      "n_train": 321
+    },
+    {
+      "week": 10,
+      "model_type": "GaussianNB",
+      "target": "착과수",
+      "r2": 0.01357797820772233,
+      "n_train": 343
+    },
+    {
+      "week": 10,
+      "model_type": "GaussianNB",
+      "target": "수확수",
+      "r2": 0.1538551755582902,
+      "n_train": 343
+    },
+    {
+      "week": 10,
+      "model_type": "GaussianNB",
+      "target": "초장",
+      "r2": 0.6218758934162631,
+      "n_train": 321
+    },
+    {
+      "week": 11,
+      "model_type": "RandomForest",
+      "target": "착과수",
+      "r2": 0.2545393602669973,
+      "n_train": 343
+    },
+    {
+      "week": 11,
+      "model_type": "RandomForest",
+      "target": "수확수",
+      "r2": 0.32093153517285233,
+      "n_train": 343
+    },
+    {
+      "week": 11,
+      "model_type": "RandomForest",
+      "target": "초장",
+      "r2": 0.8835796725297926,
+      "n_train": 321
+    },
+    {
+      "week": 11,
+      "model_type": "XGBoost",
+      "target": "착과수",
+      "r2": 0.07810311919502588,
+      "n_train": 343
+    },
+    {
+      "week": 11,
+      "model_type": "XGBoost",
+      "target": "수확수",
+      "r2": 0.18984988473144127,
+      "n_train": 343
+    },
+    {
+      "week": 11,
+      "model_type": "XGBoost",
+      "target": "초장",
+      "r2": 0.9096880516734777,
+      "n_train": 321
+    },
+    {
+      "week": 11,
+      "model_type": "LGBM",
+      "target": "착과수",
+      "r2": 0.1369661429646183,
+      "n_train": 343
+    },
+    {
+      "week": 11,
+      "model_type": "LGBM",
+      "target": "수확수",
+      "r2": 0.18407010798453494,
+      "n_train": 343
+    },
+    {
+      "week": 11,
+      "model_type": "LGBM",
+      "target": "초장",
+      "r2": 0.9194079711504808,
+      "n_train": 321
+    },
+    {
+      "week": 11,
+      "model_type": "GaussianNB",
+      "target": "착과수",
+      "r2": 0.011308377176848516,
+      "n_train": 343
+    },
+    {
+      "week": 11,
+      "model_type": "GaussianNB",
+      "target": "수확수",
+      "r2": 0.16898699000410966,
+      "n_train": 343
+    },
+    {
+      "week": 11,
+      "model_type": "GaussianNB",
+      "target": "초장",
+      "r2": 0.6417152862632863,
+      "n_train": 321
+    },
+    {
+      "week": 12,
+      "model_type": "RandomForest",
+      "target": "착과수",
+      "r2": 0.24202259892775435,
+      "n_train": 343
+    },
+    {
+      "week": 12,
+      "model_type": "RandomForest",
+      "target": "수확수",
+      "r2": 0.3275963851884349,
+      "n_train": 343
+    },
+    {
+      "week": 12,
+      "model_type": "RandomForest",
+      "target": "초장",
+      "r2": 0.8998069136793337,
+      "n_train": 321
+    },
+    {
+      "week": 12,
+      "model_type": "XGBoost",
+      "target": "착과수",
+      "r2": 0.11120590534464936,
+      "n_train": 343
+    },
+    {
+      "week": 12,
+      "model_type": "XGBoost",
+      "target": "수확수",
+      "r2": 0.21874833312421482,
+      "n_train": 343
+    },
+    {
+      "week": 12,
+      "model_type": "XGBoost",
+      "target": "초장",
+      "r2": 0.8089519320598628,
+      "n_train": 321
+    },
+    {
+      "week": 12,
+      "model_type": "LGBM",
+      "target": "착과수",
+      "r2": 0.11724540020867191,
+      "n_train": 343
+    },
+    {
+      "week": 12,
+      "model_type": "LGBM",
+      "target": "수확수",
+      "r2": 0.22062252619792866,
+      "n_train": 343
+    },
+    {
+      "week": 12,
+      "model_type": "LGBM",
+      "target": "초장",
+      "r2": 0.926465673839652,
+      "n_train": 321
+    },
+    {
+      "week": 12,
+      "model_type": "GaussianNB",
+      "target": "착과수",
+      "r2": 0.007429733657470572,
+      "n_train": 343
+    },
+    {
+      "week": 12,
+      "model_type": "GaussianNB",
+      "target": "수확수",
+      "r2": 0.18357714278482484,
+      "n_train": 343
+    },
+    {
+      "week": 12,
+      "model_type": "GaussianNB",
+      "target": "초장",
+      "r2": 0.6277304333960045,
+      "n_train": 321
     }
   ],
   "growth_features": [
@@ -598,5 +850,30 @@
     "줄기굵기",
     "화방높이"
   ],
-  "ref_farms": 0
+  "ref_farms": 10,
+  "ref_farm_names": [
+    "최양언",
+    "정병두",
+    "조순자",
+    "정연직",
+    "김선환",
+    "위희환",
+    "김영수",
+    "차재억",
+    "차인수",
+    "정지호"
+  ],
+  "selection": "농가별 총출하량 상위 10농가",
+  "weeks": [
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12
+  ]
 }
