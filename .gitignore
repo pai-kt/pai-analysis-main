@@ -28,5 +28,7 @@ env/
 data/모델학습/생육/
 data/모델학습/일사량/
 data/모델학습/환경/
-data/모델학습/.growth_ref_trajectories.parquet
 data/모델학습/.reference_training_cache/
+
+# 배포용 파생 캐시는 추적 (원본 xlsx 없이 선도 표준 곡선 재현)
+!data/모델학습/.growth_ref_trajectories.parquet
