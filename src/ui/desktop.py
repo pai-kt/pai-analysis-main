@@ -13,7 +13,7 @@ from src.ui.common import (
     render_dims_header,
     render_disclaimer,
 )
-from src.ui.styles import ADIMS_CSS, MAIN_TAB_LABELS
+from src.ui.styles import ADIMS_CSS, DARK_MODE_CSS, MAIN_TAB_LABELS
 from src.ui.tabs.data import render_data_tab
 from src.ui.tabs.forecast import render_forecast_tab
 from src.ui.tabs.growth import render_rda_flow_tab
@@ -28,6 +28,17 @@ def run_desktop_ui():
     if "weeks" not in st.session_state:
         st.session_state.weeks = 7
     st.session_state.weeks = max(3, min(12, int(st.session_state.weeks)))
+    if "dark_mode" not in st.session_state:
+        st.session_state.dark_mode = False
+    if st.session_state.dark_mode:
+        st.markdown(DARK_MODE_CSS, unsafe_allow_html=True)
+
+    with st.container(key="theme_toggle"):
+        theme_icon = "☀" if st.session_state.dark_mode else "☾"
+        theme_help = "라이트 모드로 전환" if st.session_state.dark_mode else "다크 모드로 전환"
+        if st.button(theme_icon, key="theme_toggle_button", help=theme_help):
+            st.session_state.dark_mode = not st.session_state.dark_mode
+            st.rerun()
 
     render_dims_header(st.session_state.get("dims_asof", "—"))
 

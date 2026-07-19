@@ -12,6 +12,7 @@ from src.ui.common import (
     build_actions_from_kpis,
     render_action_item,
     render_growth_timeseries_section,
+    render_tab_hero,
     render_triage,
 )
 
@@ -29,6 +30,33 @@ def _growth_tag_class(label: str) -> str:
     return "ok"
 
 
+def _group_growth_tags(kpis: list[dict]) -> str:
+    rows = []
+    for label in ("높음", "적정", "낮음"):
+        tags = "".join(
+            f'<span class="tag {_growth_tag_class(label)}">{k["text"]}</span>'
+            for k in kpis
+            if k.get("label") == label
+        )
+        if tags:
+            rows.append(f'<div class="status-tag-row">{tags}</div>')
+    return "".join(rows)
+
+
+def _group_env_tags(kpis: list[dict]) -> str:
+    rows = []
+    for status, tag_class in (("risk", "r"), ("warn", "w"), ("ok", "ok")):
+        tags = "".join(
+            f'<span class="tag {tag_class}">'
+            f'{k["name"]} {_format_kpi_value(k)} · {k["label"]}</span>'
+            for k in kpis
+            if k.get("status") == status
+        )
+        if tags:
+            rows.append(f'<div class="status-tag-row">{tags}</div>')
+    return "".join(rows)
+
+
 def render_status_tab(
     *,
     dims_ready: bool,
@@ -41,6 +69,11 @@ def render_status_tab(
     env_weeks: int = 7,
 ):
     """현황 탭 본문."""
+    render_tab_hero(
+        "Status · 현황",
+        "지금 생육·환경을 확인하세요",
+        "선도 농가 기준과 비교해 생육·환경 상태, 누적 지표, 개선 방향을 한눈에 봅니다.",
+    )
     if not has_data:
         st.info("데이터 탭에서 보안키 또는 파일 업로드 중 하나를 선택한 뒤 「분석 결과 보기」를 실행하세요.")
         return
@@ -71,11 +104,7 @@ def render_status_tab(
     warn_kpis = [k for k in alert_kpis if k["status"] == "warn"]
     n_risk = len([k for k in env_kpis if k["status"] == "risk"])
     n_warn = len([k for k in env_kpis if k["status"] == "warn"])
-
-    st.info(
-        "안내: 선도 기준은 총출하량 상위 10개 농가이며, 비교할 때 정식 시기가 "
-        "유사한 농가에 더 높은 가중치를 적용합니다."
-    )
+    n_env_ok = len([k for k in env_kpis if k["status"] == "ok"])
 
     for kpi in risk_kpis:
         render_triage(
@@ -95,19 +124,12 @@ def render_status_tab(
     growth_kpis = growth_summary.get("growth_kpis") or []
 
     if growth_kpis:
-        growth_tags = "".join(
-            f'<span class="tag {_growth_tag_class(k["label"])}">{k["text"]}</span>'
-            for k in _sort_growth_kpis(growth_kpis)
-        )
+        growth_tags = _group_growth_tags(_sort_growth_kpis(growth_kpis))
     else:
         growth_tags = '<span class="tag w">생육·수확 데이터 없음</span>'
 
     if env_kpis:
-        env_tags = "".join(
-            f'<span class="tag {"r" if k["status"]=="risk" else "w" if k["status"]=="warn" else "ok"}">'
-            f'{k["name"]} {_format_kpi_value(k)} · {k["label"]}</span>'
-            for k in _sort_env_kpis(env_kpis)[:6]
-        )
+        env_tags = _group_env_tags(_sort_env_kpis(env_kpis))
     else:
         env_tags = '<span class="tag w">환경센서 데이터 없음</span>'
 
@@ -117,7 +139,7 @@ def render_status_tab(
           <div class="card growth-card">
             <h2 style="font-size:18px;font-weight:700;color:var(--ink);">{growth_summary["headline"]}</h2>
             <div style="font-size:12px;color:var(--ink-3);margin-top:8px;">
-              생육 <b style="color:var(--warn);">{g_high} 높음</b> ·
+              <b style="color:var(--warn);">{g_high} 높음</b> ·
               <b style="color:var(--ok);">{g_ok} 적정</b> ·
               <b style="color:var(--accent);">{g_low} 낮음</b>
             </div>
@@ -127,8 +149,9 @@ def render_status_tab(
           <div class="card verdict-card">
             <h2 style="font-size:18px;font-weight:700;color:var(--ink);">환경 상태를 확인하세요.</h2>
             <div style="font-size:12px;color:var(--ink-3);margin-top:8px;">
-              환경 <b style="color:var(--risk);">{n_risk} 위험</b> ·
-              <b style="color:var(--warn);">{n_warn} 주의</b>
+              <b style="color:var(--risk);">{n_risk} 위험</b> ·
+              <b style="color:var(--warn);">{n_warn} 주의</b> ·
+              <b style="color:var(--ok);">{n_env_ok} 적정</b>
             </div>
             <div class="card-body" style="margin-top:12px;">{env_tags}</div>
             <div style="margin-top:auto;padding-top:10px;font-size:11.5px;color:var(--ink-3);line-height:1.45;">
@@ -143,22 +166,37 @@ def render_status_tab(
 
     leading_harvest = growth_summary.get("leading_harvest_total")
     leading_fruit = growth_summary.get("leading_fruit_total")
-    harvest_leading_html = (
-        f'<span style="font-size:13px;color:var(--ink-3);font-weight:600;"> / 선도 {leading_harvest:,}개</span>'
-        if leading_harvest is not None
-        else ""
-    )
-    fruit_leading_html = (
-        f'<span style="font-size:13px;color:var(--ink-3);font-weight:600;"> / 선도 {leading_fruit:,}개</span>'
-        if leading_fruit is not None
-        else ""
-    )
+
+    def _leading_compare_html(mine: float | int, leading) -> str:
+        if leading is None:
+            return ""
+        try:
+            leading_val = float(leading)
+        except (TypeError, ValueError):
+            return ""
+        if leading_val <= 0:
+            pct_html = ""
+        else:
+            pct = (float(mine) - leading_val) / leading_val * 100
+            sign = "+" if pct >= 0 else ""
+            color = "var(--risk)" if pct >= 0 else "var(--accent)"
+            pct_html = (
+                f'<span style="font-size:13px;font-weight:700;color:{color};margin-left:6px;">'
+                f"({sign}{pct:.1f}%)</span>"
+            )
+        return (
+            f'<span style="font-size:13px;color:var(--ink-3);font-weight:600;">'
+            f" / 선도 {leading_val:,.0f}개</span>{pct_html}"
+        )
+
+    harvest_leading_html = _leading_compare_html(harvest_total, leading_harvest)
+    fruit_leading_html = _leading_compare_html(fruit_total, leading_fruit)
 
     st.markdown(
         f"""
         <div class="stat-row cols-2">
-          <div class="stat"><div class="sl">누적 수확수</div><div class="sv">{harvest_total:,}<span style="font-size:13px;color:var(--ink-3);"> 개</span>{harvest_leading_html}</div><div class="sx">내 농가 누계 / 선도 농가(p50) 누계</div></div>
           <div class="stat"><div class="sl">누적 착과수</div><div class="sv">{fruit_total:,}<span style="font-size:13px;color:var(--ink-3);"> 개</span>{fruit_leading_html}</div><div class="sx">내 농가 누계 / 선도 농가(p50) 누계</div></div>
+          <div class="stat"><div class="sl">누적 수확수</div><div class="sv">{harvest_total:,}<span style="font-size:13px;color:var(--ink-3);"> 개</span>{harvest_leading_html}</div><div class="sx">내 농가 누계 / 선도 농가(p50) 누계</div></div>
         </div>
         """,
         unsafe_allow_html=True,

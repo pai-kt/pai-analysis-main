@@ -7,7 +7,7 @@ import streamlit as st
 
 import src.column_mapping as colmap
 from src import core
-from src.ui.common import read_uploaded_table, read_table_path
+from src.ui.common import read_uploaded_table, read_table_path, render_tab_hero
 from src.ui.styles import (
     DEFAULT_SENSOR_FILE,
     DEFAULT_YIELD_FILE,
@@ -97,32 +97,47 @@ def _render_mapping_chips(resolved: list[tuple[str, str | None]]):
     st.markdown(f'<div class="mchips">{"".join(parts)}</div>', unsafe_allow_html=True)
 
 
+def _render_upload_panel(title: str, labels: list[str]):
+    st.markdown(
+        f"""
+        <div class="upload-panel-head">
+          <div class="upload-panel-title">{html.escape(title)}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    _render_required_list(labels)
+
+
 def render_data_tab() -> dict:
     """데이터 탭 UI. 매핑·데이터프레임·실행 여부를 dict로 반환."""
-    st.markdown(
-        '<div class="map-sub" style="font-size:11px;font-weight:700;color:var(--ink-3);margin:26px 0 9px;">'
-        "작물을 선택해주세요</div>",
-        unsafe_allow_html=True,
-    )
-    crop_name = st.selectbox(
-        "작물", ["토마토", "딸기", "파프리카", "오이"], key="dims_crop", label_visibility="collapsed"
+    render_tab_hero(
+        "Data · 데이터 준비",
+        "분석할 데이터를 올려주세요",
+        "보안키 또는 파일 업로드 중 <b>하나</b>를 선택해 분석을 진행하세요.",
     )
 
-    st.markdown(
-        '<div class="data-head" style="margin-top:18px;"><h1>분석할 데이터를 올려주세요</h1>'
-        "<p>보안키 또는 파일 업로드 중 <b>하나</b>를 선택해 분석을 진행하세요.</p></div>",
-        unsafe_allow_html=True,
-    )
-
-    if "dims_data_source_mode" not in st.session_state:
-        st.session_state.dims_data_source_mode = "파일 업로드"
-    prev_mode = st.session_state.get("dims_data_source_mode")
-    data_source_mode = st.radio(
-        "데이터 입력 방식",
-        ["보안키 사용", "파일 업로드"],
-        horizontal=True,
-        key="dims_data_source_mode",
-    )
+    top1, top2 = st.columns([1.1, 2], gap="large")
+    with top1:
+        st.markdown('<div class="data-field-label">작물 선택</div>', unsafe_allow_html=True)
+        crop_name = st.selectbox(
+            "작물",
+            ["토마토", "딸기", "파프리카", "오이"],
+            key="dims_crop",
+            label_visibility="collapsed",
+        )
+    with top2:
+        st.markdown('<div class="data-field-label">데이터 입력 방식</div>', unsafe_allow_html=True)
+        if "dims_data_source_mode" not in st.session_state:
+            st.session_state.dims_data_source_mode = "파일 업로드"
+        prev_mode = st.session_state.get("dims_data_source_mode")
+        data_source_mode = st.radio(
+            "데이터 입력 방식",
+            ["보안키 사용", "파일 업로드"],
+            horizontal=True,
+            key="dims_data_source_mode",
+            label_visibility="collapsed",
+        )
     if prev_mode and prev_mode != data_source_mode:
         if data_source_mode == "보안키 사용":
             st.session_state.pop("dims_sensor", None)
@@ -139,7 +154,7 @@ def render_data_tab() -> dict:
 
     if data_source_mode == "보안키 사용":
         st.markdown(
-            '<p class="data-source-note">데모용 보안키를 입력하면 샘플 데이터로 바로 분석할 수 있습니다.</p>',
+            '<div class="data-note-card">데모용 보안키를 입력하면 샘플 데이터로 바로 분석할 수 있습니다.</div>',
             unsafe_allow_html=True,
         )
         security_key = st.text_input(
@@ -160,31 +175,29 @@ def render_data_tab() -> dict:
         ):
             st.error("데모 데이터 파일을 찾을 수 없습니다. `data/test/` 폴더를 확인해 주세요.")
 
-        c1, c2 = st.columns(2)
+        c1, c2 = st.columns(2, gap="small")
         with c1:
-            st.markdown("**환경센서 데이터 (CSV · XLSX)**")
-            _render_required_list(sensor_req_labels)
+            with st.container(key="upload_panel_yield_demo"):
+                _render_upload_panel("수확·생육 데이터", yield_req_labels)
         with c2:
-            st.markdown("**수확·생육 데이터 (CSV · XLSX)**")
-            _render_required_list(yield_req_labels)
+            with st.container(key="upload_panel_sensor_demo"):
+                _render_upload_panel("환경센서 데이터", sensor_req_labels)
+                st.markdown('<div class="env-card-spacer"></div>', unsafe_allow_html=True)
     else:
-        st.markdown(
-            '<p class="data-source-note">환경센서·수확·생육 CSV 또는 Excel(xlsx) 파일을 업로드하세요.</p>',
-            unsafe_allow_html=True,
-        )
-        c1, c2 = st.columns(2)
+        c1, c2 = st.columns(2, gap="small")
         with c1:
-            st.markdown("**환경센서 데이터 (CSV · XLSX)**")
-            _render_required_list(sensor_req_labels)
-            sensor_file = st.file_uploader(
-                "환경센서", type=["csv", "xlsx"], label_visibility="collapsed", key="dims_sensor"
-            )
+            with st.container(key="upload_panel_yield"):
+                _render_upload_panel("수확·생육 데이터", yield_req_labels)
+                yield_file = st.file_uploader(
+                    "수확·생육", type=["csv", "xlsx"], label_visibility="collapsed", key="dims_yield"
+                )
         with c2:
-            st.markdown("**수확·생육 데이터 (CSV · XLSX)**")
-            _render_required_list(yield_req_labels)
-            yield_file = st.file_uploader(
-                "수확·생육", type=["csv", "xlsx"], label_visibility="collapsed", key="dims_yield"
-            )
+            with st.container(key="upload_panel_sensor"):
+                _render_upload_panel("환경센서 데이터", sensor_req_labels)
+                st.markdown('<div class="env-card-spacer"></div>', unsafe_allow_html=True)
+                sensor_file = st.file_uploader(
+                    "환경센서", type=["csv", "xlsx"], label_visibility="collapsed", key="dims_sensor"
+                )
         has_uploads = bool(sensor_file and yield_file)
 
     has_demo = (
@@ -379,11 +392,9 @@ def render_data_tab() -> dict:
         )
     elif not has_data:
         if data_source_mode == "보안키 사용":
-            st.info("올바른 보안키를 입력하면 매핑 확인과 분석 실행이 가능합니다.")
-        else:
-            st.info(
-                "두 파일(CSV 또는 xlsx)을 모두 업로드하면 "
-                "매핑 확인과 분석 실행이 가능합니다."
+            st.markdown(
+                '<div class="data-status-card">올바른 보안키를 입력하면 매핑 확인과 분석 실행이 가능합니다.</div>',
+                unsafe_allow_html=True,
             )
 
     if has_data and missing_required:
@@ -392,33 +403,47 @@ def render_data_tab() -> dict:
             f"누락: {', '.join(missing_required)}"
         )
 
-    st.markdown('<div class="run-bar">', unsafe_allow_html=True)
-    rb1, rb2, rb3 = st.columns([2, 1, 1])
-    with rb2:
-        weeks_default = int(st.session_state.get("weeks", 7))
-        weeks_default = max(3, min(12, weeks_default))
-        weeks_val = st.number_input(
-            "평균 계산 기간 (주)",
-            min_value=3,
-            max_value=12,
-            value=weeks_default,
-            key="dims_weeks",
-        )
-        st.caption("최소 3주, 최대 12주까지 설정할 수 있습니다.")
-        st.session_state.weeks = int(weeks_val)
-    with rb3:
-        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-        run = st.button(
-            "분석 결과 보기 →",
-            type="primary",
-            use_container_width=True,
-            disabled=not can_analyze,
-            key="dims_run_btn",
-        )
-        if run and can_analyze:
-            st.session_state.dims_ready = True
-            st.session_state.dims_show_complete_msg = True
-            st.session_state.dims_goto_tab = MAIN_TAB_STATUS
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container(key="data_run_card"):
+        rb1, rb2, rb3 = st.columns([2, 1, 1], gap="large")
+        with rb1:
+            st.markdown(
+                """
+                <div class="data-run-copy">
+                  <div class="data-run-title">분석 준비</div>
+                  <div class="data-run-desc">환경 평균·예측에 쓸 최근 기간을 설정하세요.</div>
+                  <div class="data-run-note">최근 N주 센서 평균으로 환경 상태를 계산합니다. 예: 7주 = 최근 49일.</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        with rb2:
+            weeks_default = int(st.session_state.get("weeks", 7))
+            weeks_default = max(3, min(12, weeks_default))
+            weeks_val = st.number_input(
+                "평균 계산 기간 (주)",
+                min_value=3,
+                max_value=12,
+                value=weeks_default,
+                key="dims_weeks",
+                help=(
+                    "최근 몇 주치 센서 데이터를 평균내 환경 상태를 볼지 정합니다. "
+                    "예: 7주면 최근 49일 평균입니다. 예측 모델도 같은 주 단위를 사용합니다."
+                ),
+            )
+            st.caption("최소 3주에서 최대 12주까지 설정 가능.")
+            st.session_state.weeks = int(weeks_val)
+        with rb3:
+            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+            run = st.button(
+                "분석 결과 보기 →",
+                type="primary",
+                use_container_width=True,
+                disabled=not can_analyze,
+                key="dims_run_btn",
+            )
+            if run and can_analyze:
+                st.session_state.dims_ready = True
+                st.session_state.dims_show_complete_msg = True
+                st.session_state.dims_goto_tab = MAIN_TAB_STATUS
 
     return mapping

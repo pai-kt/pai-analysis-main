@@ -11,6 +11,7 @@ from src.ui.common import (
     build_recent_env_measures,
     build_env_kpis_from_measures,
     render_env_detail_section,
+    render_tab_hero,
 )
 
 _RDA_STAGE_SHORT_LABELS = {
@@ -195,45 +196,55 @@ def render_rda_outdoor_location() -> tuple[float | None, str | None]:
     from src.geo_weather import fetch_outdoor_temp_for_region
     from src.korea_regions import list_sido, list_sigungu
 
-    st.markdown(
-        '<div class="eyebrow" style="margin-top:4px;">Location · <span class="ko">외기기온 위치</span></div>',
-        unsafe_allow_html=True,
-    )
-
-    mode = st.radio(
-        "외기기온 입력 방식",
-        ["GPS 현재 위치", "지역 직접 선택"],
-        horizontal=True,
-        key="rda_loc_mode",
-    )
-
-    if mode == "GPS 현재 위치":
-        gps_temp, gps_label = _sync_gps_outdoor_temp()
-        if gps_temp is not None and gps_label:
-            st.success(f"📍 현재 위치 **{gps_label}** · 외기기온 **{gps_temp:.1f}°C** (GPS 기준)")
-        else:
-            st.info("📍 브라우저에서 **위치 접근을 허용**하면 현재 위치의 외기기온을 자동으로 불러옵니다.")
-        return gps_temp, gps_label
-
-    sidos = list_sido()
-    c1, c2 = st.columns(2)
-    with c1:
-        sido = st.selectbox("시·도", sidos, key="rda_manual_sido")
-    sigungu_options = list_sigungu(sido)
-    with c2:
-        sigungu = st.selectbox(
-            "시·군·구",
-            sigungu_options,
-            key=f"rda_manual_sigungu_{sido}",
+    with st.container(key="rda_location_card"):
+        st.markdown(
+            """
+            <div class="rda-section-head">
+              <div class="rda-step">01</div>
+              <div>
+                <div class="rda-section-kicker">Location · 위치</div>
+                <div class="rda-section-title">외기기온을 불러올 위치</div>
+                <div class="rda-section-desc">현재 위치를 사용하거나 지역을 직접 선택하세요.</div>
+              </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-    temp, label = fetch_outdoor_temp_for_region(sido, sigungu)
-    if temp is not None and label:
-        _apply_rda_outdoor_temp(temp, label)
-        st.success(f"📍 **{label}** · 외기기온 **{temp:.1f}°C** (선택 지역 기준)")
-    else:
-        st.warning("선택한 지역의 기온을 불러오지 못했습니다. 다른 지역을 선택해 보세요.")
-    return temp, label
+        mode = st.radio(
+            "외기기온 입력 방식",
+            ["GPS 현재 위치", "지역 직접 선택"],
+            horizontal=True,
+            key="rda_loc_mode",
+        )
+
+        if mode == "GPS 현재 위치":
+            gps_temp, gps_label = _sync_gps_outdoor_temp()
+            if gps_temp is not None and gps_label:
+                st.success(f"📍 현재 위치 **{gps_label}** · 외기기온 **{gps_temp:.1f}°C** (GPS 기준)")
+            else:
+                st.info("📍 브라우저에서 **위치 접근을 허용**하면 현재 위치의 외기기온을 자동으로 불러옵니다.")
+            return gps_temp, gps_label
+
+        sidos = list_sido()
+        c1, c2 = st.columns(2)
+        with c1:
+            sido = st.selectbox("시·도", sidos, key="rda_manual_sido")
+        sigungu_options = list_sigungu(sido)
+        with c2:
+            sigungu = st.selectbox(
+                "시·군·구",
+                sigungu_options,
+                key=f"rda_manual_sigungu_{sido}",
+            )
+
+        temp, label = fetch_outdoor_temp_for_region(sido, sigungu)
+        if temp is not None and label:
+            _apply_rda_outdoor_temp(temp, label)
+            st.success(f"📍 **{label}** · 외기기온 **{temp:.1f}°C** (선택 지역 기준)")
+        else:
+            st.warning("선택한 지역의 기온을 불러오지 못했습니다. 다른 지역을 선택해 보세요.")
+        return temp, label
 
 
 def render_rda_gps_location() -> tuple[float | None, str | None]:
@@ -265,10 +276,10 @@ def render_rda_flow_tab(
         SOLAR_DISPLAY_COLS,
     )
 
-    st.markdown(
-        '<div class="data-head"><h1>환경관리</h1>'
-        '<p>농진청 토마토 시설재배 <b>일사량별 최적환경</b>·<b>생육상태별 최적생산량</b> 표준을 조회합니다.</p></div>',
-        unsafe_allow_html=True,
+    render_tab_hero(
+        "Env · 환경관리",
+        "농진청 표준으로 환경을 맞춰보세요",
+        "일사량·생육단계별 농진청 최적환경 표준을 조회하고, 최근 실측과 비교합니다.",
     )
 
     gps_temp, gps_label = render_rda_outdoor_location()
@@ -299,51 +310,75 @@ def render_rda_flow_tab(
 
     for sub, kind in ((sub_solar, "solar"), (sub_growth, "growth")):
         with sub:
-            facility = st.radio("시설유형", ["비닐", "유리"], horizontal=True, key=f"rda_facility_{kind}")
-            stages = RDA_STAGES_SOLAR if kind == "solar" else RDA_STAGES_GROWTH
-            stage_key = f"rda_stage_{kind}"
-            if stage_key not in st.session_state:
-                st.session_state[stage_key] = (
-                    default_stage if default_stage in stages else stages[4]
+            with st.container(key=f"rda_setup_{kind}"):
+                st.markdown(
+                    """
+                    <div class="rda-section-head">
+                      <div class="rda-step">02</div>
+                      <div>
+                        <div class="rda-section-kicker">Condition · 조건</div>
+                        <div class="rda-section-title">시설과 생육단계 선택</div>
+                        <div class="rda-section-desc">재배 조건에 맞는 농진청 권장 기준을 찾습니다.</div>
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
                 )
-            stage = st.radio(
-                "권장설정 조회 선택사항",
-                stages,
-                horizontal=True,
-                key=stage_key,
-            )
-            st.markdown('<div class="eyebrow">Stage · <span class="ko">생육단계</span></div>', unsafe_allow_html=True)
-            render_rda_stage_picker(kind, stage, stages)
+                facility = st.radio(
+                    "시설유형", ["비닐", "유리"], horizontal=True, key=f"rda_facility_{kind}"
+                )
+                stages = RDA_STAGES_SOLAR if kind == "solar" else RDA_STAGES_GROWTH
+                stage_key = f"rda_stage_{kind}"
+                if stage_key not in st.session_state:
+                    st.session_state[stage_key] = (
+                        default_stage if default_stage in stages else stages[4]
+                    )
+                stage = st.radio(
+                    "생육단계 선택",
+                    stages,
+                    horizontal=True,
+                    key=stage_key,
+                )
+                render_rda_stage_picker(kind, stage, stages)
 
-            st.markdown(
-                '<div class="eyebrow" style="margin-top:18px;">Search · <span class="ko">맞춤형 최적환경설정 조회</span></div>',
-                unsafe_allow_html=True,
-            )
-            c1, c2, c3 = st.columns([1, 1, 0.55])
-            with c1:
-                solar_str = st.text_input(
-                    "누적일사량 (J/㎠/day)",
-                    value=f"{default_solar:,.0f}".replace(",", "") if default_solar else "",
-                    placeholder="예: 2000",
-                    key=f"rda_solar_{kind}",
+            with st.container(key=f"rda_search_card_{kind}"):
+                st.markdown(
+                    """
+                    <div class="rda-section-head rda-section-head--compact">
+                      <div class="rda-step">03</div>
+                      <div>
+                        <div class="rda-section-kicker">Search · 조회</div>
+                        <div class="rda-section-title">맞춤형 최적환경 설정</div>
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
                 )
-            with c2:
-                outdoor_str = st.text_input(
-                    "외기기온 (℃)",
-                    placeholder="예: 18.0",
-                    key=f"rda_outdoor_{kind}",
-                    help="GPS 또는 선택 지역 기온이 자동 입력됩니다. 필요하면 직접 수정할 수 있습니다.",
-                )
-            with c3:
-                st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
-                can_search = bool(solar_str.strip())
-                search = st.button(
-                    "조회",
-                    type="primary",
-                    use_container_width=True,
-                    disabled=not can_search,
-                    key=f"rda_search_{kind}",
-                )
+                c1, c2, c3 = st.columns([1, 1, 0.55])
+                with c1:
+                    solar_str = st.text_input(
+                        "누적일사량 (J/㎠/day)",
+                        value=f"{default_solar:,.0f}".replace(",", "") if default_solar else "",
+                        placeholder="예: 2000",
+                        key=f"rda_solar_{kind}",
+                    )
+                with c2:
+                    outdoor_str = st.text_input(
+                        "외기기온 (℃)",
+                        placeholder="예: 18.0",
+                        key=f"rda_outdoor_{kind}",
+                        help="GPS 또는 선택 지역 기온이 자동 입력됩니다. 필요하면 직접 수정할 수 있습니다.",
+                    )
+                with c3:
+                    st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+                    can_search = bool(solar_str.strip())
+                    search = st.button(
+                        "조회",
+                        type="primary",
+                        use_container_width=True,
+                        disabled=not can_search,
+                        key=f"rda_search_{kind}",
+                    )
 
             if kind == "solar":
                 raw = load_solar_standard(facility, stage)

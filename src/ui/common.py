@@ -51,7 +51,7 @@ def render_dims_header(asof_date: str, subtitle: str | None = None):
     st.markdown(
         f"""
         <div class="dims-header">
-          <div style="display:flex;align-items:center;gap:16px;">
+          <div class="dims-header-row">
             <div class="dims-brand">
               <span class="dot"></span>
               <div class="dims-brand-text">
@@ -59,8 +59,38 @@ def render_dims_header(asof_date: str, subtitle: str | None = None):
                 {sub_html}
               </div>
             </div>
-            <div style="flex:1"></div>
-            <div class="dims-asof">최종 조사 <b>{html.escape(str(asof_date))}</b></div>
+            <div class="dims-header-mid">
+              <div class="dims-mid-title">토마토 생육·환경 의사결정</div>
+              <div class="dims-mid-steps">
+                <span>데이터 업로드</span>
+                <span class="dims-mid-sep">→</span>
+                <span>현황 진단</span>
+                <span class="dims-mid-sep">→</span>
+                <span>환경관리</span>
+                <span class="dims-mid-sep">→</span>
+                <span>예측</span>
+              </div>
+            </div>
+            <div class="dims-asof">
+              <div class="dims-asof-label">최종 조사</div>
+              <div class="dims-asof-value">{html.escape(str(asof_date))}</div>
+            </div>
+          </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_tab_hero(kicker: str, title: str, desc: str):
+    """탭 상단 히어로 카드 (데이터/현황/환경관리/예측 공통)."""
+    st.markdown(
+        f"""
+        <div class="data-hero">
+          <div class="data-hero-kicker">{html.escape(kicker)}</div>
+          <div class="data-head">
+            <h1>{html.escape(title)}</h1>
+            <p>{desc}</p>
           </div>
         </div>
         """,
@@ -611,25 +641,88 @@ def render_recipe_table(measures: dict[str, float]):
 
 
 def build_actions_from_kpis(kpis: list[dict]) -> list[dict]:
-    actions = []
+    """위험·주의 KPI마다 개선 방향 1건을 생성한다."""
     advice = {
-        "야간 습도": ("야간 제습·환기", "난방배관·환기로 야간 결로 차단, 관수량 점검. 80% 이하로 낮춰 잿빛곰팡이·노균병 위험 완화."),
-        "누적 일사량": ("일사량 차광·엽온 관리", "차광 스크린·환기·세무 냉방으로 정오 전후 엽온 상승 억제."),
-        "주간 온도": ("주간 온도 완화", "정오 환기 강화로 24℃대 적정구간 복귀."),
-        "야간 온도": ("야간 온도 관리", "야간 환기·난방으로 13~16℃ 권장 구간 유지."),
+        "누적 일사량": {
+            "high": (
+                "일사량 차광·엽온 관리",
+                "차광 스크린·환기·세무 냉방으로 정오 전후 엽온 상승을 억제하세요.",
+            ),
+            "low": (
+                "일사량 확보",
+                "과도한 차광을 줄이고 측창·피복 상태를 점검해 광량을 확보하세요.",
+            ),
+        },
+        "주간 온도": {
+            "high": (
+                "주간 온도 완화",
+                "정오 환기 강화로 적정 온도 구간으로 복귀시키세요.",
+            ),
+            "low": (
+                "주간 온도 확보",
+                "난방·보온 커튼으로 주간 저온을 보완하세요.",
+            ),
+        },
+        "야간 온도": {
+            "high": (
+                "야간 온도 관리",
+                "야간 환기로 권장 온도 구간을 유지하세요.",
+            ),
+            "low": (
+                "야간 온도 확보",
+                "야간 난방·보온으로 저온 스트레스를 줄이세요.",
+            ),
+        },
+        "주간 습도": {
+            "high": (
+                "주간 습도 조절",
+                "환기·제습으로 과습을 낮춰 병해 위험을 줄이세요.",
+            ),
+            "low": (
+                "주간 습도 확보",
+                "포그·관수로 과도한 건조를 완화하세요.",
+            ),
+        },
+        "야간 습도": {
+            "high": (
+                "야간 제습·환기",
+                "난방배관·환기로 야간 결로를 차단하고 관수량을 점검하세요.",
+            ),
+            "low": (
+                "야간 습도 확보",
+                "야간 건조가 심하면 관수·가습으로 적정 습도를 유지하세요.",
+            ),
+        },
+        "잔존 CO₂": {
+            "high": (
+                "CO₂ 농도 조절",
+                "환기를 늘려 과도한 CO₂ 축적을 완화하세요.",
+            ),
+            "low": (
+                "CO₂ 시비 점검",
+                "CO₂ 공급량·타이밍을 점검해 광합성에 필요한 농도를 확보하세요.",
+            ),
+        },
     }
     urgency_map = {
         "risk": ("시급", "var(--risk)"),
         "warn": ("보통", "var(--warn)"),
     }
+    actions = []
     for k in _alert_priority_kpis(kpis):
-        if k["name"] not in advice:
-            continue
-        title, desc = advice[k["name"]]
+        direction = "high" if k["val"] > k["optHi"] else "low"
+        pair = advice.get(k["name"], {}).get(direction)
+        if pair is None:
+            title = f'{k["name"]} 점검'
+            desc = "적정 구간을 벗어나 있으니 환경 제어 설정을 확인하세요."
+        else:
+            title, desc = pair
         urgency, color = urgency_map.get(k["status"], ("보통", "var(--warn)"))
-        why = f'{k["name"]} {k["val"]:.1f}{k["unit"]} ({k["label"]})'
-        actions.append({"title": title, "why": why, "desc": desc, "urgency": urgency, "color": color})
-    return actions[:3]
+        why = f'{k["name"]} {_format_kpi_value(k)} ({k["label"]})'
+        actions.append(
+            {"title": title, "why": why, "desc": desc, "urgency": urgency, "color": color}
+        )
+    return actions
 
 
 def render_disclaimer():
@@ -669,6 +762,12 @@ def _plotly_timeseries(
     plot_df = plot_df.dropna().sort_values(x_col)
     if plot_df.empty:
         return None
+    dark_mode = bool(st.session_state.get("dark_mode", False))
+    paper_color = "#1F2937" if dark_mode else "#FFFFFF"
+    plot_color = "#111827" if dark_mode else "#F7F8FA"
+    text_color = "#F3F4F6" if dark_mode else "#243240"
+    grid_color = "#374151" if dark_mode else "#EEF1F5"
+    line_color = "#4B5563" if dark_mode else "#D7DDE4"
     fig = go.Figure()
     if standard_df is not None and not standard_df.empty and {"p25", "p50", "p75"}.issubset(standard_df.columns):
         std = standard_df.copy()
@@ -697,7 +796,7 @@ def _plotly_timeseries(
     ))
     fig.update_layout(
         title=title, height=220, margin=dict(l=40, r=10, t=36, b=30),
-        template="plotly_white",
+        template="plotly_dark" if dark_mode else "plotly_white",
         showlegend=standard_df is not None and not standard_df.empty,
         legend=dict(
             orientation="h",
@@ -707,11 +806,11 @@ def _plotly_timeseries(
             y=1.02,
             font=dict(size=10),
         ),
-        paper_bgcolor="#fff", plot_bgcolor="#F7F8FA",
-        font=dict(family="Pretendard, sans-serif", size=11, color="#243240"),
+        paper_bgcolor=paper_color, plot_bgcolor=plot_color,
+        font=dict(family="Pretendard, sans-serif", size=11, color=text_color),
     )
-    fig.update_xaxes(gridcolor="#EEF1F5", linecolor="#D7DDE4")
-    fig.update_yaxes(gridcolor="#EEF1F5", linecolor="#D7DDE4")
+    fig.update_xaxes(gridcolor=grid_color, linecolor=line_color)
+    fig.update_yaxes(gridcolor=grid_color, linecolor=line_color)
     return fig
 
 
@@ -837,7 +936,7 @@ def render_growth_timeseries_section(df, date_col: str = "조사일자", key_pre
     upload_start = plot_df["조사일자"].min()
     upload_end = plot_df["조사일자"].max()
     max_rel_day = int((upload_end - upload_start).days) + 7
-    standard_curves, n_ref_farms = build_growth_standard_curves(upload_start, max_rel_day=max_rel_day)
+    standard_curves, _n_ref_farms = build_growth_standard_curves(upload_start, max_rel_day=max_rel_day)
 
     st.markdown(
         '<div class="eyebrow">Growth · <span class="ko">생육·수확이 어떻게 커왔나</span></div>',
@@ -847,17 +946,6 @@ def render_growth_timeseries_section(df, date_col: str = "조사일자", key_pre
         "안내: 선도 기준은 총출하량 상위 10개 농가이며, 비교할 때 정식 시기가 "
         "유사한 농가에 더 높은 가중치를 적용합니다."
     )
-    if standard_curves and n_ref_farms:
-        st.caption(
-            f"**실선 · 내 농가** = 업로드 파일 조사일자별 실측 · "
-            f"**회색 점선 · 선도** = 총출하량 상위 {n_ref_farms}개 농가 "
-            f"(정식 시기 {upload_start.strftime('%m-%d')} 전후 유사 농가 가중 · 주별 p25~p75)"
-        )
-    else:
-        st.caption(
-            "업로드한 생육·수확 파일의 **조사일자별 실측값**입니다. "
-            "같은 날짜에 화방별 여러 행이 있으면 수확·착과는 합산, 생육 측정값은 평균으로 표시합니다."
-        )
     colors = {
         "착과수": "#4E79A7", "초장": "#59A14F", "엽수": "#59A14F", "수확수": "#E15759",
         "생장길이": "#76B7B2", "엽장": "#B07AA1", "엽폭": "#9C755F", "줄기굵기": "#EDC948", "화방높이": "#AF7AA1",

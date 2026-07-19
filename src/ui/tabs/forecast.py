@@ -4,6 +4,9 @@ from __future__ import annotations
 import streamlit as st
 import pandas as pd
 
+from src.ui.common import render_tab_hero
+
+
 def _upload_forecast_cache_key(upload_df: pd.DataFrame, selected_week: int, fruit_total: int) -> str:
     from src.model_store import MANIFEST_PATH
 
@@ -161,15 +164,15 @@ def render_forecast_tab(
     delay_days: int = 0,
 ):
     """예측 탭 본문."""
+    render_tab_hero(
+        "Forecast · 예측",
+        "앞으로의 전망을 확인하세요",
+        "지금 추세로 갈 때의 예상입니다. 모델이 추정한 <b>참고용</b> 값이에요.",
+    )
     if not dims_ready or df is None:
         st.info("데이터 탭에서 「분석 결과 보기」를 실행하면 전망이 표시됩니다.")
         return
 
-    st.markdown(
-        '<div class="data-head"><h1>앞으로 전망</h1>'
-        '<p>지금 추세로 갈 때의 예상입니다. 컴퓨터가 추정한 <b>참고용</b> 값이에요.</p></div>',
-        unsafe_allow_html=True,
-    )
     render_model_forecast_section(
         df,
         week_dfs,
