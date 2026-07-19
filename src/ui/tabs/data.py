@@ -443,7 +443,13 @@ def render_data_tab() -> dict:
             )
             if run and can_analyze:
                 st.session_state.dims_ready = True
+                st.session_state.dims_analyzing = True
                 st.session_state.dims_show_complete_msg = True
                 st.session_state.dims_goto_tab = MAIN_TAB_STATUS
 
+    progress_bar = None
+    if st.session_state.get("dims_analyzing"):
+        progress_bar = st.progress(0)
+
+    mapping["progress_bar"] = progress_bar
     return mapping

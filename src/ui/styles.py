@@ -222,6 +222,12 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-upload_panel_sensor_demo) > div
 .data-run-title{font-size:15px;font-weight:800;color:var(--ink);letter-spacing:-.2px;}
 .data-run-desc{font-size:12.5px;color:var(--ink-3);margin-top:4px;font-weight:500;}
 .data-run-note{font-size:12px;color:var(--ink-2);margin-top:8px;line-height:1.45;font-weight:500;}
+.analysis-progress-card{
+  margin:14px 0 10px;padding:14px 16px;border-radius:12px;
+  background:var(--accent-bg);border:1px solid color-mix(in srgb,var(--accent) 24%,var(--line));
+}
+.analysis-progress-title{font-size:14px;font-weight:800;color:var(--ink);letter-spacing:-.2px;}
+.analysis-progress-desc{font-size:12.5px;color:var(--ink-2);margin-top:4px;font-weight:500;}
 .st-key-rda_location_card,
 [class*="st-key-rda_setup_"],
 [class*="st-key-rda_search_card_"]{

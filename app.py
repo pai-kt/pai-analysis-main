@@ -21,7 +21,11 @@ os.environ.setdefault("MPLBACKEND", "Agg")
 import streamlit as st
 
 if os.environ.get("PAI_APP_MODE") != "mobile":
-    st.set_page_config(page_title="의사결정지원시스템 · 토마토 대시보드", layout="wide")
+    st.set_page_config(
+        page_title="의사결정지원시스템",
+        page_icon="🌱",
+        layout="wide",
+    )
 
 # 모바일 모드용 최소 스타일
 if os.environ.get("PAI_APP_MODE") == "mobile":

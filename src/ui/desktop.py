@@ -25,6 +25,8 @@ def run_desktop_ui():
 
     if "dims_ready" not in st.session_state:
         st.session_state.dims_ready = False
+    if "dims_analyzing" not in st.session_state:
+        st.session_state.dims_analyzing = False
     if "weeks" not in st.session_state:
         st.session_state.weeks = 7
     st.session_state.weeks = max(3, min(12, int(st.session_state.weeks)))
@@ -101,6 +103,14 @@ def run_desktop_ui():
     growth_features = mapping["growth_features"]
 
     # 전처리
+    analyzing = bool(st.session_state.get("dims_analyzing"))
+    progress = mapping.get("progress_bar")
+
+    def _set_progress(ratio: float) -> None:
+        if progress is not None:
+            progress.progress(min(1.0, max(0.0, ratio)))
+
+    _set_progress(0.05)
     sensor_df[date_col_sensor] = pd.to_datetime(sensor_df[date_col_sensor], errors="coerce")
     yield_df[date_col_yield] = pd.to_datetime(yield_df[date_col_yield], errors="coerce")
     sensor_df = sensor_df.dropna(subset=[date_col_sensor]).copy()
@@ -115,7 +125,9 @@ def run_desktop_ui():
 
     selected_week = st.session_state.weeks
     week_dfs = {}
-    for wk in range(3, 13):
+    model_weeks = list(range(3, 13))
+    for i, wk in enumerate(model_weeks):
+        _set_progress(0.1 + 0.55 * ((i + 1) / len(model_weeks)))
         week_dfs[wk] = core.compute_rolling_summary(
             sensor_df,
             yield_df,
@@ -133,6 +145,7 @@ def run_desktop_ui():
     df = week_dfs[selected_week].copy()
     if df.empty or "조사일자" not in df.columns:
         st.session_state.dims_show_complete_msg = False
+        st.session_state.dims_analyzing = False
         st.error("생육·수확 데이터를 처리하지 못했습니다. **조사일자** 컬럼과 날짜 형식을 확인해 주세요.")
         with tab_series:
             render_rda_flow_tab(
@@ -155,11 +168,7 @@ def run_desktop_ui():
 
     dims_ready = st.session_state.dims_ready
 
-    if dims_ready and st.session_state.get("dims_show_complete_msg"):
-        with tab_data:
-            st.success("분석이 완료되었습니다. 결과를 확인하세요.")
-        st.session_state.dims_show_complete_msg = False
-
+    _set_progress(0.72)
     yield_chart_df = build_growth_chart_df(
         yield_df, date_col_yield, harvest_count_col, harvest_weight_col, growth_cols
     )
@@ -167,6 +176,7 @@ def run_desktop_ui():
         yield_df, date_col_yield, harvest_count_col, harvest_weight_col, growth_cols
     )
 
+    _set_progress(0.82)
     env_kpis = build_status_env_kpis(
         sensor_df=sensor_df,
         date_col_sensor=date_col_sensor,
@@ -181,6 +191,7 @@ def run_desktop_ui():
 
     from src.growth_standards import summarize_growth_vs_standard
 
+    _set_progress(0.92)
     if dims_ready and not df.empty:
         growth_chart_df = build_growth_chart_df(
             df, growth_cols={gf: gf for gf in growth_features if gf in df.columns}
@@ -189,6 +200,15 @@ def run_desktop_ui():
         growth_chart_df = yield_chart_df
     growth_summary = summarize_growth_vs_standard(growth_chart_df)
     delay_days = growth_summary["delay_days"]
+
+    if analyzing:
+        _set_progress(1.0)
+        st.session_state.dims_analyzing = False
+
+    if dims_ready and st.session_state.get("dims_show_complete_msg"):
+        with tab_data:
+            st.success("분석이 완료되었습니다. 결과를 확인하세요.")
+        st.session_state.dims_show_complete_msg = False
 
     with tab_now:
         render_status_tab(
