@@ -479,8 +479,9 @@ STAGE_RECIPE = {
 
 
 
-MAIN_TAB_LABELS = ["1 · 데이터", "2 · 현황", "3 · 환경관리", "4 · 예측"]
-MAIN_TAB_STATUS = 1
+MAIN_TAB_LABELS = ["1 · 데이터", "2 · 환경 설정", "3 · 내 농가 진단", "4 · 예측"]
+MAIN_TAB_ENV = 1
+MAIN_TAB_STATUS = 2
 
 GROWTH_CHART_PRIMARY = ["착과수", "초장", "엽수", "수확수"]
 GROWTH_CHART_EXTRA = ["생장길이", "엽장", "엽폭", "줄기굵기", "화방높이"]

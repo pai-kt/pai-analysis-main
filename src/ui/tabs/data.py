@@ -12,7 +12,7 @@ from src.ui.styles import (
     DEFAULT_SENSOR_FILE,
     DEFAULT_YIELD_FILE,
     DIMS_SECURITY_KEY,
-    MAIN_TAB_STATUS,
+    MAIN_TAB_ENV,
 )
 
 # 필수 입력 변수 정의: (표시명, 후보 컬럼명 목록)
@@ -445,7 +445,12 @@ def render_data_tab() -> dict:
                 st.session_state.dims_ready = True
                 st.session_state.dims_analyzing = True
                 st.session_state.dims_show_complete_msg = True
-                st.session_state.dims_goto_tab = MAIN_TAB_STATUS
+                st.session_state.dims_goto_tab = MAIN_TAB_ENV
+                # 새 분석 시 이전 조회 기준 초기 — 환경관리에서 다시 조회해야 현황에 반영
+                st.session_state.pop("rda_env_detail_show", None)
+                st.session_state.pop("status_env_kpis", None)
+                st.session_state.pop("rda_last_environment_rec", None)
+                st.session_state.pop("rda_last_solar_q", None)
 
     progress_bar = None
     if st.session_state.get("dims_analyzing"):

@@ -60,13 +60,13 @@ def render_dims_header(asof_date: str, subtitle: str | None = None):
               </div>
             </div>
             <div class="dims-header-mid">
-              <div class="dims-mid-title">토마토 생육·환경 의사결정</div>
+              <div class="dims-mid-title">생육·환경 의사결정</div>
               <div class="dims-mid-steps">
                 <span>데이터 업로드</span>
                 <span class="dims-mid-sep">→</span>
-                <span>현황 진단</span>
+                <span>환경 설정</span>
                 <span class="dims-mid-sep">→</span>
-                <span>환경관리</span>
+                <span>내 농가 진단</span>
                 <span class="dims-mid-sep">→</span>
                 <span>예측</span>
               </div>
@@ -262,6 +262,26 @@ def build_env_kpis_from_measures(
     return kpis
 
 
+def rda_environment_ranges_from_rec(match_row: dict | pd.Series | None) -> dict[str, tuple[float, float]]:
+    """농진청 비교표의 권장 범위를 환경 KPI 키로 변환."""
+    from src.rda_standards import parse_range
+
+    if match_row is None:
+        return {}
+    mapping = {
+        "일사량": "누적일사량(범위)",
+        "주간온도": "주간 평균온도(℃)",
+        "야간온도": "야간 평균온도(℃)",
+    }
+    ranges: dict[str, tuple[float, float]] = {}
+    for env_key, rda_col in mapping.items():
+        value = match_row.get(rda_col) if isinstance(match_row, dict) else match_row.get(rda_col)
+        lo, hi = parse_range(value)
+        if lo is not None and hi is not None:
+            ranges[env_key] = (lo, hi)
+    return ranges
+
+
 def _alert_priority_kpis(kpis: list[dict]) -> list[dict]:
     """상단 알림 순서 — 심각도(위험→주의) 우선, 같으면 주요 항목 순."""
     name_order = {
@@ -327,9 +347,26 @@ def build_status_env_kpis(
     latest_row=None,
     selected_week: int = 7,
     core=None,
+    yield_df=None,
+    date_col_yield=None,
+    optimal_ranges: dict[str, tuple[float, float]] | None = None,
 ) -> list[dict]:
-    """현황 탭 환경 KPI — 업로드 센서 최근 N주(평균 계산 기간) 우선."""
+    """현황 탭 환경 KPI.
+
+    환경관리 탭에서 「조회」 후 저장된 KPI가 있으면
+    「지금 환경 상태」 게이지와 동일한 기준·값을 사용한다.
+    """
+    cached = st.session_state.get("status_env_kpis")
+    if st.session_state.get("rda_env_detail_show") and cached:
+        return list(cached)
+
     days = max(1, int(selected_week) * 7)
+    if optimal_ranges is None:
+        optimal_ranges = {}
+        if st.session_state.get("rda_env_detail_show"):
+            optimal_ranges = rda_environment_ranges_from_rec(
+                st.session_state.get("rda_last_environment_rec")
+            )
     if sensor_df is not None and date_col_sensor and temp_col:
         measures = build_recent_env_measures(
             sensor_df,
@@ -339,9 +376,12 @@ def build_status_env_kpis(
             solar_col,
             co2_col=co2_col,
             days=days,
+            solar_override=st.session_state.get("rda_last_solar_q")
+            if st.session_state.get("rda_env_detail_show")
+            else None,
         )
         if measures:
-            return build_env_kpis_from_measures(measures)
+            return build_env_kpis_from_measures(measures, optimal_ranges=optimal_ranges)
     if latest_row is not None and core is not None:
         return build_env_kpis_from_row(latest_row, selected_week, core)
     return []

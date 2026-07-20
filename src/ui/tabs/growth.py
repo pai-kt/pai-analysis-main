@@ -1,4 +1,4 @@
-"""Tab 3 · 환경관리 (농진청 표준 조회)."""
+"""Tab 2 · 환경 설정 (농진청 표준 조회)."""
 from __future__ import annotations
 
 import html
@@ -10,6 +10,7 @@ import numpy as np
 from src.ui.common import (
     build_recent_env_measures,
     build_env_kpis_from_measures,
+    rda_environment_ranges_from_rec,
     render_env_detail_section,
     render_tab_hero,
 )
@@ -97,26 +98,6 @@ def render_rda_result_table(view: pd.DataFrame, highlight_indices: list[int] | N
         f'<tbody>{"".join(rows)}</tbody></table></div>',
         unsafe_allow_html=True,
     )
-
-
-def _rda_environment_ranges(match_row: dict | pd.Series | None) -> dict[str, tuple[float, float]]:
-    """농진청 비교표의 권장 범위를 환경 게이지 키로 변환."""
-    from src.rda_standards import parse_range
-
-    if match_row is None:
-        return {}
-    mapping = {
-        "일사량": "누적일사량(범위)",
-        "주간온도": "주간 평균온도(℃)",
-        "야간온도": "야간 평균온도(℃)",
-    }
-    ranges: dict[str, tuple[float, float]] = {}
-    for env_key, rda_col in mapping.items():
-        value = match_row.get(rda_col)
-        lo, hi = parse_range(value)
-        if lo is not None and hi is not None:
-            ranges[env_key] = (lo, hi)
-    return ranges
 
 
 def _parse_geolocation(location) -> dict | None:
@@ -277,7 +258,7 @@ def render_rda_flow_tab(
     )
 
     render_tab_hero(
-        "Env · 환경관리",
+        "Env · 환경 설정",
         "농진청 표준으로 환경을 맞춰보세요",
         "일사량·생육단계별 농진청 최적환경 표준을 조회하고, 최근 실측과 비교합니다.",
     )
@@ -415,11 +396,10 @@ def render_rda_flow_tab(
             if search and (solar_q is not None or outdoor_q is not None):
                 shown = raw.copy()
                 match_group_idx, aggregated_rec = find_best_match_group(shown, solar_q, outdoor_q)
-                if kind == "solar":
-                    if aggregated_rec is not None:
-                        st.session_state["rda_last_environment_rec"] = aggregated_rec.to_dict()
-                    else:
-                        st.session_state.pop("rda_last_environment_rec", None)
+                if aggregated_rec is not None:
+                    st.session_state["rda_last_environment_rec"] = aggregated_rec.to_dict()
+                else:
+                    st.session_state.pop("rda_last_environment_rec", None)
                 st.info("입력한 누적일사량·외기기온에 해당하는 권장 설정을 노란색으로 표시합니다.")
             else:
                 shown = raw.copy()
@@ -453,13 +433,15 @@ def render_rda_flow_tab(
                 co2_col=co2_col,
                 solar_override=solar_override,
             )
-            rda_ranges = _rda_environment_ranges(
+            rda_ranges = rda_environment_ranges_from_rec(
                 st.session_state.get("rda_last_environment_rec")
             )
             rda_kpis = build_env_kpis_from_measures(
                 measures,
                 optimal_ranges=rda_ranges,
             )
+            # 현황 탭 「환경 상태」와 동일 기준·값으로 동기화
+            st.session_state["status_env_kpis"] = rda_kpis
             render_env_detail_section(
                 rda_kpis,
                 sensor_df=sensor_df,

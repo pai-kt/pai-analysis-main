@@ -1,4 +1,4 @@
-"""Tab 2 · 현황."""
+"""Tab 3 · 내 농가 진단."""
 from __future__ import annotations
 
 import streamlit as st
@@ -68,9 +68,9 @@ def render_status_tab(
     fruit_total: int = 0,
     env_weeks: int = 7,
 ):
-    """현황 탭 본문."""
+    """내 농가 진단 탭 본문."""
     render_tab_hero(
-        "Status · 현황",
+        "Status · 내 농가 진단",
         "지금 생육·환경을 확인하세요",
         "선도 농가 기준과 비교해 생육·환경 상태, 누적 지표, 개선 방향을 한눈에 봅니다.",
     )
@@ -139,6 +139,21 @@ def render_status_tab(
     else:
         env_tags = '<span class="tag w">환경센서 데이터 없음</span>'
 
+    env_from_rda = bool(st.session_state.get("rda_env_detail_show") and st.session_state.get("status_env_kpis"))
+    if env_from_rda:
+        env_basis_note = (
+            "환경 설정 탭 「조회」 결과와 동일한 기준"
+            "<br>· 지금 값·적정 구간은 환경 설정의 「지금 환경 상태」 게이지와 같습니다"
+            "<br>· 누적 일사량·주간·야간 온도는 농진청 권장 구간, 그 외는 기본 기준"
+        )
+    else:
+        env_basis_note = (
+            f"업로드 센서 최근 {env_weeks}주({env_days}일) 평균 기준"
+            "<br>· 환경 설정 탭에서 「조회」하면 농진청 권장 구간으로 갱신됩니다"
+            "<br>· 주간(08~18시)·야간(19~07시)으로 온도·습도·CO₂ 는 평균값,"
+            "<br>· 누적 일사량은 일별 최댓값 중 최댓값을 측정"
+        )
+
     st.markdown(
         f"""
         <div class="hero-grid">
@@ -161,9 +176,7 @@ def render_status_tab(
             </div>
             <div class="card-body" style="margin-top:12px;">{env_tags}</div>
             <div style="margin-top:auto;padding-top:10px;font-size:11.5px;color:var(--ink-3);line-height:1.45;">
-              업로드 센서 최근 {env_weeks}주({env_days}일) 평균 기준
-              <br>· 주간(08~18시)·야간(19~07시)으로 온도·습도·CO₂ 는 평균값,
-              <br>· 누적 일사량은 일별 최댓값 중 최댓값을 측정
+              {env_basis_note}
             </div>
           </div>
         </div>""",

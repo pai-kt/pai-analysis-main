@@ -44,7 +44,7 @@ def run_desktop_ui():
 
     render_dims_header(st.session_state.get("dims_asof", "—"))
 
-    tab_data, tab_now, tab_series, tab_forecast = st.tabs(MAIN_TAB_LABELS)
+    tab_data, tab_env, tab_status, tab_forecast = st.tabs(MAIN_TAB_LABELS)
 
     with tab_data:
         mapping = render_data_tab()
@@ -55,18 +55,8 @@ def run_desktop_ui():
     yield_df = mapping["yield_df"]
 
     if not has_data or not can_analyze:
-        with tab_now:
-            if has_data and not can_analyze:
-                missing = mapping.get("missing_required") or []
-                msg = "데이터 탭에서 필수 변수를 모두 매핑한 뒤 「분석 결과 보기」를 실행하세요."
-                if missing:
-                    msg += f" (누락: {', '.join(missing)})"
-                st.info(msg)
-            else:
-                render_status_tab(
-                    dims_ready=False, has_data=False, env_kpis=[], growth_summary=None, growth_chart_df=None
-                )
-        with tab_series:
+        status_unlocked = bool(st.session_state.get("rda_env_detail_show"))
+        with tab_env:
             # 필수 변수 일부가 있어도 농진청 조회는 가능하면 연결
             render_rda_flow_tab(
                 sensor_df=sensor_df if can_analyze else None,
@@ -78,6 +68,19 @@ def run_desktop_ui():
                 yield_df=yield_df if can_analyze else None,
                 date_col_yield=mapping.get("date_col_yield") if can_analyze else None,
             )
+        with tab_status:
+            if has_data and not can_analyze:
+                missing = mapping.get("missing_required") or []
+                msg = "데이터 탭에서 필수 변수를 모두 매핑한 뒤 「분석 결과 보기」를 실행하세요."
+                if missing:
+                    msg += f" (누락: {', '.join(missing)})"
+                st.info(msg)
+            elif not status_unlocked:
+                st.info("환경 설정 탭에서 「조회」를 눌러야 내 농가 진단 탭이 활성화됩니다.")
+            else:
+                render_status_tab(
+                    dims_ready=False, has_data=False, env_kpis=[], growth_summary=None, growth_chart_df=None
+                )
         with tab_forecast:
             render_forecast_tab(
                 dims_ready=False,
@@ -147,7 +150,7 @@ def run_desktop_ui():
         st.session_state.dims_show_complete_msg = False
         st.session_state.dims_analyzing = False
         st.error("생육·수확 데이터를 처리하지 못했습니다. **조사일자** 컬럼과 날짜 형식을 확인해 주세요.")
-        with tab_series:
+        with tab_env:
             render_rda_flow_tab(
                 sensor_df=sensor_df,
                 date_col_sensor=date_col_sensor,
@@ -177,17 +180,6 @@ def run_desktop_ui():
     )
 
     _set_progress(0.82)
-    env_kpis = build_status_env_kpis(
-        sensor_df=sensor_df,
-        date_col_sensor=date_col_sensor,
-        temp_col=temp_col,
-        hum_col=hum_col,
-        solar_col=solar_col,
-        co2_col=co2_col,
-        latest_row=latest if dims_ready else None,
-        selected_week=selected_week,
-        core=core if dims_ready else None,
-    )
 
     from src.growth_standards import summarize_growth_vs_standard
 
@@ -210,17 +202,49 @@ def run_desktop_ui():
             st.success("분석이 완료되었습니다. 결과를 확인하세요.")
         st.session_state.dims_show_complete_msg = False
 
-    with tab_now:
-        render_status_tab(
-            dims_ready=dims_ready,
-            has_data=True,
-            env_kpis=env_kpis,
-            growth_summary=growth_summary,
-            growth_chart_df=growth_chart_df,
-            harvest_total=harvest_total,
-            fruit_total=fruit_total,
-            env_weeks=selected_week,
+    # 환경관리 조회를 현황 KPI 계산보다 먼저 처리해 「조회」 결과가 같은 런에 반영되게 함
+    with tab_env:
+        render_rda_flow_tab(
+            sensor_df=sensor_df,
+            date_col_sensor=date_col_sensor,
+            temp_col=temp_col,
+            hum_col=hum_col,
+            co2_col=co2_col,
+            solar_col=solar_col,
+            yield_df=yield_df,
+            date_col_yield=date_col_yield,
         )
+
+    status_unlocked = bool(st.session_state.get("rda_env_detail_show"))
+
+    env_kpis = build_status_env_kpis(
+        sensor_df=sensor_df,
+        date_col_sensor=date_col_sensor,
+        temp_col=temp_col,
+        hum_col=hum_col,
+        solar_col=solar_col,
+        co2_col=co2_col,
+        latest_row=latest if dims_ready else None,
+        selected_week=selected_week,
+        core=core if dims_ready else None,
+        yield_df=yield_df,
+        date_col_yield=date_col_yield,
+    )
+
+    with tab_status:
+        if not status_unlocked:
+            st.info("환경 설정 탭에서 「조회」를 눌러야 내 농가 진단 탭이 활성화됩니다.")
+        else:
+            render_status_tab(
+                dims_ready=dims_ready,
+                has_data=True,
+                env_kpis=env_kpis,
+                growth_summary=growth_summary,
+                growth_chart_df=growth_chart_df,
+                harvest_total=harvest_total,
+                fruit_total=fruit_total,
+                env_weeks=selected_week,
+            )
 
     with tab_forecast:
         render_forecast_tab(
@@ -231,18 +255,6 @@ def run_desktop_ui():
             growth_features=growth_features,
             fruit_total=fruit_total,
             delay_days=delay_days,
-        )
-
-    with tab_series:
-        render_rda_flow_tab(
-            sensor_df=sensor_df,
-            date_col_sensor=date_col_sensor,
-            temp_col=temp_col,
-            hum_col=hum_col,
-            co2_col=co2_col,
-            solar_col=solar_col,
-            yield_df=yield_df,
-            date_col_yield=date_col_yield,
         )
 
     goto_tab = st.session_state.pop("dims_goto_tab", None)
