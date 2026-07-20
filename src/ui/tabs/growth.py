@@ -457,7 +457,7 @@ def render_rda_flow_tab(
             )
         else:
             st.markdown(
-                '<div class="eyebrow">Env · <span class="ko">환경 상세 — 지금 값·적정 구간·제어 품질</span></div>',
+                '<div class="eyebrow">Env · <span class="ko">환경 상세 — 지금 값·적정 구간</span></div>',
                 unsafe_allow_html=True,
             )
             st.info("환경센서 데이터를 업로드하면 조회 결과와 함께 환경 상세를 확인할 수 있습니다.")

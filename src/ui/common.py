@@ -593,9 +593,9 @@ def render_env_detail_section(
     hum_col: str | None = None,
     context_note: str | None = None,
 ):
-    """지금 값·적정 구간·제어 품질."""
+    """지금 값·적정 구간."""
     st.markdown(
-        '<div class="eyebrow">Env · <span class="ko">환경 상세 — 지금 값·적정 구간·제어 품질</span></div>',
+        '<div class="eyebrow">Env · <span class="ko">환경 상세 — 지금 값·적정 구간</span></div>',
         unsafe_allow_html=True,
     )
     st.markdown(
@@ -612,16 +612,6 @@ def render_env_detail_section(
         "<b style=\"color:var(--ink-2)\">농진청 표준 조회</b> 결과와 함께 현재 생육단계 목표 환경을 확인하세요."
     )
     st.markdown(f'<p class="subnote">{note}</p>', unsafe_allow_html=True)
-
-    st.markdown(
-        '<div class="eyebrow">Control · <span class="ko">환경 제어가 잘 되고 있나 — 지금 값(●)과 적정 구간(초록)</span></div>',
-        unsafe_allow_html=True,
-    )
-    control = build_control_quality_from_sensor(sensor_df, date_col, temp_col, hum_col)
-    if control:
-        render_control_quality_stats(control)
-    else:
-        st.caption("온도·습도 센서 데이터가 있으면 최근 7일 제어 품질을 함께 표시합니다.")
 
 
 def render_action_item(title, why, desc, urgency, color):

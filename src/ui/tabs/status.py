@@ -112,7 +112,8 @@ def render_status_tab(
                 _env_primary_alert(kpi),
                 status=kpi["status"],
             )
-    else:
+    elif not warn_kpis:
+        # 위험·주의 없이 양호만 있을 때
         render_triage(
             "오늘 꼭 볼 것 — 현재 환경 상태가 양호합니다.",
             status="ok",
