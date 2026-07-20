@@ -368,12 +368,12 @@ def summarize_growth_vs_standard(chart_df: pd.DataFrame) -> dict:
         row = std.iloc[(std["rel_week"] - rel_week).abs().argsort()[:1]].iloc[0]
         p25, p50, p75 = float(row["p25"]), float(row["p50"]), float(row["p75"])
         if actual < p25:
-            status, label = "warn", "낮음"
+            status, label = "warn", "미달"
             low_items.append(metric)
             if metric == "초장" and p50 > actual:
                 delay_days = max(delay_days, int(round((p50 - actual) / max(p50 * 0.015, 1))))
         elif actual > p75:
-            status, label = "warn", "높음"
+            status, label = "warn", "초과"
             high_items.append(metric)
         else:
             status, label = "ok", "적정"
@@ -386,8 +386,8 @@ def summarize_growth_vs_standard(chart_df: pd.DataFrame) -> dict:
         })
 
     delay_days = min(max(delay_days, 0), 45)
-    n_high = len([k for k in growth_kpis if k.get("label") == "높음"])
-    n_low = len([k for k in growth_kpis if k.get("label") == "낮음"])
+    n_high = len([k for k in growth_kpis if k.get("label") == "초과"])
+    n_low = len([k for k in growth_kpis if k.get("label") == "미달"])
     n_ok = len([k for k in growth_kpis if k.get("label") == "적정"])
     leading_harvest = _leading_cumulative(plot, curves, "수확수") if curves else None
     leading_fruit = _leading_cumulative(plot, curves, "착과수") if curves else None
@@ -408,12 +408,12 @@ def summarize_growth_vs_standard(chart_df: pd.DataFrame) -> dict:
         stat = "적정"
     elif low_items and not high_items:
         items = "·".join(low_items[:3])
-        pill = "낮음"
-        stat = f"{items} 낮음"
+        pill = "미달"
+        stat = f"{items} 미달"
     elif high_items and not low_items:
         items = "·".join(high_items[:3])
-        pill = "높음"
-        stat = f"{items} 높음"
+        pill = "초과"
+        stat = f"{items} 초과"
     else:
         pill = "혼재"
         stat = "혼재"

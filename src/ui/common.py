@@ -110,12 +110,12 @@ def render_triage(message: str, status: str, icon: str = "🔔"):
 
 def _zone_to_status(zone: str) -> tuple[str, str]:
     if zone in ("최적구간", "중간구간"):
-        return "ok", "적정"
+        return "ok", "양호"
     if zone in ("다습구간", "고온구간", "고온", "과다", "저온구간", "저습구간", "저광구간"):
         return "warn", zone.replace("구간", "")
     if zone in ("최고한계구간", "최저한계구간"):
         return "risk", zone.replace("구간", "")
-    return "ok", "적정"
+    return "ok", "양호"
 
 
 def build_env_kpis_from_row(row: pd.Series, week: int, core) -> list[dict]:
@@ -205,7 +205,7 @@ def render_gauge_strip(kpis: list[dict]):
 
 def _status_from_opt_range(val: float, opt_lo: float, opt_hi: float, env_key: str = "") -> tuple[str, str]:
     if opt_lo <= val <= opt_hi:
-        return "ok", "적정"
+        return "ok", "양호"
     if val > opt_hi:
         if env_key == "일사량":
             return "risk", "최고한계"
@@ -241,7 +241,7 @@ def build_env_kpis_from_measures(
                 vmax = max(vmax, opt_hi, float(val))
         status, label = _status_from_opt_range(float(val), opt_lo, opt_hi, key)
         if opt_lo <= float(val) <= opt_hi:
-            label = "적정"
+            label = "양호"
         elif float(val) > opt_hi:
             if key == "야간습도":
                 label = "다습"
@@ -495,7 +495,7 @@ def build_control_quality_kpis(stats: dict) -> list[dict]:
 
     if vpd is not None:
         if 0.6 <= vpd <= 1.2:
-            status, label = "ok", "적정"
+            status, label = "ok", "양호"
         elif vpd < 0.6:
             status, label = "warn", "낮음"
         else:
@@ -622,7 +622,7 @@ def render_recipe_table(measures: dict[str, float]):
         if val is None or np.isnan(val):
             continue
         if lo <= val <= hi:
-            judge, jcls = "적정", "ok"
+            judge, jcls = "양호", "ok"
         elif val > hi:
             judge, jcls = "높음 ↑", "warn" if env != "야간습도" else "risk"
         else:

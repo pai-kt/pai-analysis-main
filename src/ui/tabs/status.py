@@ -18,21 +18,21 @@ from src.ui.common import (
 
 
 def _sort_growth_kpis(kpis: list[dict]) -> list[dict]:
-    order = {"높음": 0, "적정": 1, "낮음": 2}
+    order = {"초과": 0, "적정": 1, "미달": 2}
     return sorted(kpis, key=lambda k: order.get(k.get("label"), 9))
 
 
 def _growth_tag_class(label: str) -> str:
-    if label == "높음":
+    if label == "초과":
         return "high"
-    if label == "낮음":
+    if label == "미달":
         return "low"
     return "ok"
 
 
 def _group_growth_tags(kpis: list[dict]) -> str:
     rows = []
-    for label in ("높음", "적정", "낮음"):
+    for label in ("초과", "적정", "미달"):
         tags = "".join(
             f'<span class="tag {_growth_tag_class(label)}">{k["text"]}</span>'
             for k in kpis
@@ -106,10 +106,16 @@ def render_status_tab(
     n_warn = len([k for k in env_kpis if k["status"] == "warn"])
     n_env_ok = len([k for k in env_kpis if k["status"] == "ok"])
 
-    for kpi in risk_kpis:
+    if risk_kpis:
+        for kpi in risk_kpis:
+            render_triage(
+                _env_primary_alert(kpi),
+                status=kpi["status"],
+            )
+    else:
         render_triage(
-            _env_primary_alert(kpi),
-            status=kpi["status"],
+            "오늘 꼭 볼 것 — 현재 환경 상태가 양호합니다.",
+            status="ok",
         )
     if warn_kpis:
         render_triage(
@@ -139,9 +145,9 @@ def render_status_tab(
           <div class="card growth-card">
             <h2 style="font-size:18px;font-weight:700;color:var(--ink);">{growth_summary["headline"]}</h2>
             <div style="font-size:12px;color:var(--ink-3);margin-top:8px;">
-              <b style="color:var(--warn);">{g_high} 높음</b> ·
+              <b style="color:var(--warn);">{g_high} 초과</b> ·
               <b style="color:var(--ok);">{g_ok} 적정</b> ·
-              <b style="color:var(--accent);">{g_low} 낮음</b>
+              <b style="color:var(--accent);">{g_low} 미달</b>
             </div>
             <div class="card-body" style="margin-top:12px;">{growth_tags}</div>
             <div style="margin-top:auto;padding-top:10px;font-size:11.5px;color:var(--ink-3);">선도 농가 표준(p25~p75) 대비 최근 조사</div>
@@ -151,7 +157,7 @@ def render_status_tab(
             <div style="font-size:12px;color:var(--ink-3);margin-top:8px;">
               <b style="color:var(--risk);">{n_risk} 위험</b> ·
               <b style="color:var(--warn);">{n_warn} 주의</b> ·
-              <b style="color:var(--ok);">{n_env_ok} 적정</b>
+              <b style="color:var(--ok);">{n_env_ok} 양호</b>
             </div>
             <div class="card-body" style="margin-top:12px;">{env_tags}</div>
             <div style="margin-top:auto;padding-top:10px;font-size:11.5px;color:var(--ink-3);line-height:1.45;">
