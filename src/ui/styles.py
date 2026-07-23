@@ -447,16 +447,167 @@ DARK_MODE_CSS = """
 .g-track{background:#3B4655!important;}
 .g-pin{border-color:#1F2937!important;box-shadow:0 0 0 1.5px rgba(255,255,255,.28)!important;}
 .scard.model .sv{color:#8CB5DE!important;}
-div[data-testid="stFileUploader"] section{background:var(--surface)!important;}
+
+/* Streamlit 위젯 글자색 (config.toml light 테마 잔여색 덮기) */
+.stApp [data-testid="stCaptionContainer"],
+.stApp [data-testid="stCaptionContainer"] p{
+  color:var(--ink-3)!important;
+}
+.stApp [data-testid="stWidgetLabel"],
+.stApp [data-testid="stWidgetLabel"] p,
+.stApp [data-testid="stMarkdownContainer"] p{
+  color:var(--ink)!important;
+}
+
+/* 라디오 / 체크박스 */
+.stApp div[role="radiogroup"] label,
+.stApp div[role="radiogroup"] label p,
+.stApp label[data-baseweb="radio"],
+.stApp label[data-baseweb="radio"] p,
+.stApp label[data-baseweb="checkbox"],
+.stApp label[data-baseweb="checkbox"] p{
+  color:var(--ink-2)!important;
+  -webkit-text-fill-color:var(--ink-2)!important;
+  opacity:1!important;
+}
+.stApp div[role="radiogroup"] label[data-checked="true"] p,
+.stApp label[data-baseweb="radio"][data-checked="true"] p{
+  color:var(--ink)!important;
+  -webkit-text-fill-color:var(--ink)!important;
+}
+/* 활성 탭 글자 유지 */
+[data-testid="stTabs"] [aria-selected="true"],
+[data-testid="stTabs"] [aria-selected="true"] p{
+  color:#fff!important;
+  -webkit-text-fill-color:#fff!important;
+}
+
+/* Select / Input / Number */
 [data-baseweb="input"] input,
 [data-baseweb="textarea"] textarea,
 [data-baseweb="select"] > div,
 [data-baseweb="popover"],
-[data-baseweb="menu"]{
+[data-baseweb="menu"],
+[data-testid="stNumberInput"] input,
+[data-testid="stTextInput"] input,
+[data-testid="stTextArea"] textarea{
   background:var(--surface)!important;
   color:var(--ink)!important;
+  -webkit-text-fill-color:var(--ink)!important;
   border-color:var(--line)!important;
 }
+[data-baseweb="select"] > div{
+  background:var(--bg)!important;
+  border:1px solid var(--line)!important;
+}
+[data-baseweb="select"] span,
+[data-baseweb="select"] div,
+[data-testid="stSelectbox"] span,
+[data-testid="stSelectbox"] div[data-baseweb="select"] *{
+  color:var(--ink)!important;
+  -webkit-text-fill-color:var(--ink)!important;
+  opacity:1!important;
+}
+[data-baseweb="popover"] li,
+[data-baseweb="popover"] [role="option"],
+[data-baseweb="menu"] li{
+  background:var(--surface)!important;
+  color:var(--ink)!important;
+  -webkit-text-fill-color:var(--ink)!important;
+}
+[data-baseweb="popover"] li:hover,
+[data-baseweb="menu"] li:hover{
+  background:var(--accent-bg)!important;
+}
+
+/* File uploader — 드롭존 안내문 */
+div[data-testid="stFileUploader"] section{
+  background:var(--bg)!important;
+  border-color:color-mix(in srgb,var(--accent) 40%,var(--line))!important;
+}
+div[data-testid="stFileUploader"] section:hover{
+  background:var(--accent-bg)!important;
+  border-color:var(--accent)!important;
+}
+div[data-testid="stFileUploader"] section,
+div[data-testid="stFileUploader"] section *:not(button):not(button *){
+  color:var(--ink-2)!important;
+  -webkit-text-fill-color:var(--ink-2)!important;
+  opacity:1!important;
+}
+div[data-testid="stFileUploader"] small,
+div[data-testid="stFileUploader"] [data-testid="stFileUploaderDropzoneInstructions"] small{
+  color:var(--ink-3)!important;
+  -webkit-text-fill-color:var(--ink-3)!important;
+}
+/* Browse files 버튼 — 밝은 배경 + 어두운 글자 */
+div[data-testid="stFileUploader"] button,
+div[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"],
+div[data-testid="stFileUploader"] [data-baseweb="button"]{
+  background:#E8EEF5!important;
+  background-color:#E8EEF5!important;
+  color:#1F2937!important;
+  border:1px solid #9AA8B8!important;
+  font-weight:700!important;
+}
+div[data-testid="stFileUploader"] button *,
+div[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"] *,
+div[data-testid="stFileUploader"] [data-testid="stBaseButton-secondary"] p,
+div[data-testid="stFileUploader"] [data-baseweb="button"] *,
+div[data-testid="stFileUploader"] [data-baseweb="button"] p{
+  color:#1F2937!important;
+  -webkit-text-fill-color:#1F2937!important;
+}
+div[data-testid="stFileUploader"] button:hover,
+div[data-testid="stFileUploader"] [data-baseweb="button"]:hover{
+  background:#D5E3F2!important;
+  border-color:var(--accent)!important;
+}
+
+/* Primary / Disabled 버튼 */
+.stButton>button[kind="primary"]{
+  background:var(--accent)!important;
+  color:#0B1220!important;
+  font-weight:800!important;
+}
+.stButton>button[kind="primary"] p,
+.stButton>button[kind="primary"] span{
+  color:#0B1220!important;
+  -webkit-text-fill-color:#0B1220!important;
+}
+.stButton>button[kind="primary"]:disabled,
+.stButton>button:disabled{
+  background:#3B4655!important;
+  color:#CBD5E1!important;
+  border:1px solid #4B5563!important;
+  opacity:1!important;
+}
+.stButton>button[kind="primary]:disabled p,
+.stButton>button:disabled p,
+.stButton>button[kind="primary"]:disabled span,
+.stButton>button:disabled span{
+  color:#CBD5E1!important;
+  -webkit-text-fill-color:#CBD5E1!important;
+}
+.stButton>button[kind="secondary"],
+.stButton>button:not([kind="primary"]){
+  background:var(--surface)!important;
+  color:var(--ink)!important;
+  border:1px solid var(--line)!important;
+}
+.stButton>button[kind="secondary"] p,
+.stButton>button:not([kind="primary"]) p{
+  color:var(--ink)!important;
+  -webkit-text-fill-color:var(--ink)!important;
+}
+
+/* Expander / Alert / Info */
+[data-testid="stExpander"] summary,
+[data-testid="stExpander"] summary p,
+[data-testid="stExpander"] summary span{
+  color:var(--ink)!important;
+}
+[data-testid="stAlert"]{color:var(--ink)!important;}
 [data-testid="stDataFrame"],
 [data-testid="stTable"]{color:var(--ink)!important;}
 </style>

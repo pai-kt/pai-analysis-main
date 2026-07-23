@@ -29,7 +29,6 @@ def run_desktop_ui():
         st.session_state.dims_analyzing = False
     if "weeks" not in st.session_state:
         st.session_state.weeks = 7
-    st.session_state.weeks = max(3, min(12, int(st.session_state.weeks)))
     if "dark_mode" not in st.session_state:
         st.session_state.dark_mode = False
     if st.session_state.dark_mode:

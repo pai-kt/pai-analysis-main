@@ -417,21 +417,18 @@ def render_data_tab() -> dict:
                 unsafe_allow_html=True,
             )
         with rb2:
-            weeks_default = int(st.session_state.get("weeks", 7))
-            weeks_default = max(3, min(12, weeks_default))
-            weeks_val = st.number_input(
+            st.number_input(
                 "평균 계산 기간 (주)",
                 min_value=3,
                 max_value=12,
-                value=weeks_default,
-                key="dims_weeks",
+                step=1,
+                key="weeks",
                 help=(
                     "최근 몇 주치 센서 데이터를 평균내 환경 상태를 볼지 정합니다. "
                     "예: 7주면 최근 49일 평균입니다. 예측 모델도 같은 주 단위를 사용합니다."
                 ),
             )
             st.caption("최소 3주에서 최대 12주까지 설정 가능.")
-            st.session_state.weeks = int(weeks_val)
         with rb3:
             st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
             run = st.button(
