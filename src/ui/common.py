@@ -331,9 +331,18 @@ def _env_primary_alert(k: dict) -> str:
 
 
 def _env_secondary_alert(kpis: list[dict]) -> str:
-    """주의 항목을 하나의 알림으로 묶음 (이름만, 수치 제외)."""
-    names = [k["name"] for k in kpis if k.get("name")]
-    joined = ", ".join(f"<b>{n}</b>" for n in names)
+    """주의 항목을 하나의 알림으로 묶음 (이름·상태 라벨, 수치 제외)."""
+    parts = []
+    for k in kpis:
+        name = k.get("name")
+        if not name:
+            continue
+        label = (k.get("label") or "").strip()
+        if label and label not in ("양호", "보통"):
+            parts.append(f"<b>{name} {label}</b>")
+        else:
+            parts.append(f"<b>{name}</b>")
+    joined = ", ".join(parts)
     return f"이상 지속 알림 — {joined} 상태가 지속되고 있습니다."
 
 

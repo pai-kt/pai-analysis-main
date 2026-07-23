@@ -89,6 +89,8 @@ def run_desktop_ui():
                 growth_features=[],
                 fruit_total=0,
                 delay_days=0,
+                sensor_df=None,
+                date_col_sensor=None,
             )
         render_disclaimer()
         return
@@ -254,6 +256,8 @@ def run_desktop_ui():
             growth_features=growth_features,
             fruit_total=fruit_total,
             delay_days=delay_days,
+            sensor_df=sensor_df,
+            date_col_sensor=date_col_sensor,
         )
 
     goto_tab = st.session_state.pop("dims_goto_tab", None)

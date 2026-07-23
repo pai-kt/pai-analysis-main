@@ -337,6 +337,27 @@ div[data-testid="stHorizontalBlock"]:has(.st-key-upload_panel_sensor_demo) > div
 .scard .sl{font-size:13px;color:var(--ink-2);font-weight:700;margin-top:8px;}
 .scard .sv{font-size:30px;font-weight:800;color:var(--accent);margin-top:6px;}
 .scard .sx{font-size:12.5px;color:var(--ink-3);margin-top:7px;line-height:1.45;}
+.forecast-flow{margin-top:4px;padding:4px 2px 8px;}
+.forecast-flow .ff-row{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;margin:0;}
+.forecast-flow .ff-box{
+  min-width:150px;max-width:220px;flex:1 1 150px;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  padding:12px 14px;text-align:center;box-shadow:var(--shadow);
+}
+.forecast-flow .ff-box .ff-t{font-size:12.5px;font-weight:700;color:var(--ink);line-height:1.35;}
+.forecast-flow .ff-box .ff-s{font-size:11px;color:var(--ink-3);margin-top:5px;line-height:1.4;}
+.forecast-flow .ff-box.ff-src{background:var(--bg);}
+.forecast-flow .ff-box.ff-x{background:var(--accent-bg);border-color:var(--line);}
+.forecast-flow .ff-box.ff-model{background:var(--accent);border-color:var(--accent);}
+.forecast-flow .ff-box.ff-model .ff-t,
+.forecast-flow .ff-box.ff-model .ff-s{color:#fff;}
+.forecast-flow .ff-box.ff-model .ff-s{opacity:.9;}
+.forecast-flow .ff-box.ff-out{border:1.5px solid var(--accent);}
+.forecast-flow .ff-arrow{
+  text-align:center;color:var(--ink-3);font-size:14px;line-height:1;padding:6px 0 8px;
+  user-select:none;
+}
+.forecast-flow .ff-note{font-size:11.5px;color:var(--ink-3);margin-top:12px;line-height:1.5;}
 .disclaimer{margin:34px 0 12px;padding:16px 20px;background:#EEF1F5;border-radius:12px;display:flex;gap:12px;}
 .disclaimer .dt{font-size:12.5px;color:var(--ink-2);line-height:1.6;}
 .copyright{margin:0 0 28px;padding:14px 4px 6px;text-align:center;font-size:11.5px;color:var(--ink-3);line-height:1.65;border-top:1px solid var(--line-soft);}
@@ -443,6 +464,9 @@ DARK_MODE_CSS = """
 }
 .forecast{background:#182231!important;}
 .forecast-model{background:#1D3045!important;}
+.forecast-flow .ff-box.ff-x{background:#2A3A4D!important;}
+.forecast-flow .ff-box.ff-model .ff-t,
+.forecast-flow .ff-box.ff-model .ff-s{color:#F8FAFC!important;}
 .disclaimer{background:#263140!important;}
 .g-track{background:#3B4655!important;}
 .g-pin{border-color:#1F2937!important;box-shadow:0 0 0 1.5px rgba(255,255,255,.28)!important;}
